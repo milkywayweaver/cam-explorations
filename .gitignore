@@ -1,2 +1,8 @@
 /brisc2025/
 .vscode/
+/saves/
+/mlruns/
+mlflow.db
+playground.ipynb
+run_result.out
+*.out

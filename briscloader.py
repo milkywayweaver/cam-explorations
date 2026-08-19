@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset,random_split
 from torchvision.io import read_image
 from torchvision.transforms import v2
 from sklearn.preprocessing import LabelEncoder
@@ -13,7 +13,7 @@ class LoadBRISC():
         self.cls_root = './brisc2025/classification_task'
         self.seg_root = './brisc2025/segmentation_task'
     
-    def load(self,classes:str='all',planes:str='all',label_type:str='class',encoding_type='integer',train_transform=None,test_transform=None):
+    def load(self,classes:str='all',planes:str='all',label_type:str='class',encoding_type='integer',split_val=True,train_transform=None,test_transform=None,generator=None):
         '''
         Loads BRISC 2025 dataset into a PyTorch Dataset.
 
@@ -37,8 +37,10 @@ class LoadBRISC():
                 Supported values are:
                     - 'onehot' : Returns labels in onehot encoding
                     - 'integer' : Returns labels in integer labels
+            split_val (bool, default==True): Whether to split the test data into test and validation set or not
             train_transform (torchvision.transforms): Image transformation for the training dataset
             test_transform (torchvision.transforms): Image transformation for the testing dataset
+            generator (torch.Generator): PyTorch generator for reproducability
 
         Returns:
             PyTorch Dataset object of selected configuration.
@@ -52,6 +54,12 @@ class LoadBRISC():
         if encoding_type not in ['onehot','integer']:
             raise ValueError('Unknown value for "encoding_type" arguement! Use "integer", or "onehot".')
 
+        self.classes_abr = {
+            'gl':'glioma',
+            'me':'meningioma',
+            'pi':'pituitary',
+            'no':'no_tumor'
+        }
         self.classes_dict = {
             'all':['gl','me','no','pi'],
             'tumor':['gl','me','pi']
@@ -65,41 +73,42 @@ class LoadBRISC():
         self.classes = self.classes_dict[classes]
         self.planes = self.planes_dict[planes]
         self.encoding_type = encoding_type
+        self.split_val = split_val
+        if generator:
+            self.generator = generator
 
-        # Get image paths and labels
-        train_img_paths = []
-        train_mask_paths = []
+        # Get image id and labels
+        train_ids = []
+        test_ids = []
         train_labels = []
-        test_img_paths = []
-        test_mask_paths = []
         test_labels = []
         for cls in self.classes:
             for pln in self.planes:
                 labels = f'{cls}' if label_type == 'class' else f'{pln}' if label_type == 'plane' else f'{cls} {pln}'
                 if cls == 'no':
-                    train_paths = glob.glob(os.path.join(self.cls_root,'train','no_tumor',f'*{pln}*'))
-                    test_paths = glob.glob(os.path.join(self.cls_root,'test','no_tumor',f'*{pln}*'))
+                    train_img_path = sorted(glob.glob(os.path.join(self.cls_root,'train','no_tumor',f'*{pln}*')))
+                    test_img_path = sorted(glob.glob(os.path.join(self.cls_root,'test','no_tumor',f'*{pln}*')))
 
-                    train_img_paths.extend(train_paths)
-                    test_img_paths.extend(test_paths)
-
-                    train_mask_paths.extend([None for i in range(len(train_paths))])
-                    test_mask_paths.extend([None for i in range(len(test_paths))])
+                    train_id = [path.split('/')[-1].replace('brisc2025_train_','').split('.')[0] for path in train_img_path] 
+                    test_id = [path.split('/')[-1].replace('brisc2025_test_','').split('.')[0] for path in test_img_path]
+                   
+                    train_ids.extend(train_id)
+                    test_ids.extend(test_id)
                 else:
-                    train_paths = glob.glob(os.path.join(self.seg_root,'train','images',f'*{cls}_{pln}*'))
-                    test_paths = glob.glob(os.path.join(self.seg_root,'test','images',f'*{cls}_{pln}*'))
+                    train_img_path = sorted(glob.glob(os.path.join(self.seg_root,'train','images',f'*{cls}_{pln}*')))
+                    test_img_path = sorted(glob.glob(os.path.join(self.seg_root,'test','images',f'*{cls}_{pln}*')))
 
-                    train_img_paths.extend(train_paths)
-                    test_img_paths.extend(test_paths)
+                    train_id = [path.split('/')[-1].replace('brisc2025_train_','').split('.')[0] for path in train_img_path] 
+                    test_id = [path.split('/')[-1].replace('brisc2025_test_','').split('.')[0] for path in test_img_path] 
 
-                    train_mask_paths.extend(glob.glob(os.path.join(self.seg_root,'train','masks',f'*{cls}_{pln}*')))
-                    test_mask_paths.extend(glob.glob(os.path.join(self.seg_root,'test','masks',f'*{cls}_{pln}*')))
-                train_labels.extend([labels for i in range(len(train_paths))])
-                test_labels.extend([labels for i in range(len(test_paths))])
+                    train_ids.extend(train_id)
+                    test_ids.extend(test_id)
+                train_labels.extend([labels for i in range(len(train_img_path))])
+                test_labels.extend([labels for i in range(len(test_img_path))])
 
         # Get images and masks
-        train_imgs,train_masks = self.__import_image(train_img_paths,train_mask_paths)
-        test_imgs,test_masks = self.__import_image(test_img_paths,test_mask_paths)
+        train_imgs,train_masks = self.__import_image(train_ids,'train')
+        test_imgs,test_masks = self.__import_image(test_ids,'test')
         train_labels = np.array(train_labels)
         test_labels = np.array(test_labels)
 
@@ -110,7 +119,11 @@ class LoadBRISC():
         # Put images and masks into a Dataset object
         self.train_ds = DatasetClass(train_imgs,train_masks,train_labels,transform=train_transform)
         self.test_ds = DatasetClass(test_imgs,test_masks,test_labels,transform=test_transform)
-        return self.train_ds,self.test_ds
+        if self.split_val:
+            self.val_ds,self.test_ds = random_split(self.test_ds,[0.5,0.5],generator=self.generator)
+            return self.train_ds,self.val_ds,self.test_ds
+        else:
+            return self.train_ds,self.test_ds
 
     def __encode_label(self,labels:np.ndarray):
         '''
@@ -122,32 +135,36 @@ class LoadBRISC():
         '''
         encoder = LabelEncoder()
         labels_enc = encoder.fit_transform(labels)
-        self.classes = encoder.classes_
+        self.classes = [self.classes_abr[cls] for cls in list(encoder.classes_)]
         if self.encoding_type == 'onehot':
             labels_enc = np.eye(len(self.classes),dtype=int)[labels_enc]
         return labels_enc
 
-    def __import_image(self,img_paths,mask_paths):
+    def __import_image(self,ids,mode):
         '''
         Imports images and masks from given list of paths
         Args:
-            img_paths (list): List of path to images
-            mask_paths (list) : List of path to masks
-        
+            ids (list): List of image ids
+            mode (str) : "train" or "test" set
         Returns:
             PyTorch tensor of the images and masks in one batch
         '''
         imgs,masks = [],[]
-        for i in tqdm(range(len(img_paths))):
-            img = read_image(img_paths[i])
+        for id in tqdm(ids):
+            cls = self.classes_abr[id.split('_')[1]]
+            # img_path = glob.glob(os.path.join(self.cls_root,f'{mode}/{cls}/*{id}*'))[0]
+            img_path = os.path.join(self.cls_root,f'{mode}/{cls}/brisc2025_{mode}_{id}.jpg')
+            img = read_image(img_path)
             img = v2.functional.resize(img,(224,224))
             img = v2.Grayscale(num_output_channels=1)(img)
-            if mask_paths[i]:
-                mask = read_image(mask_paths[i])
-                mask = v2.functional.resize(mask,(224,224))
-            else:
+            if cls == 'no_tumor':
                 mask = torch.zeros_like(img)
- 
+            else:
+                # mask_path = glob.glob(os.path.join(self.seg_root,f'{mode}/masks/*{id}*'))[0]
+                mask_path = os.path.join(self.seg_root,f'{mode}/masks/brisc2025_{mode}_{id}.png')
+                mask = read_image(mask_path)
+                mask = v2.functional.resize(mask,(224,224))
+                mask = (mask >= 0.7)
             imgs.append(img)
             masks.append(mask)
         imgs = torch.cat(imgs).to(torch.float32).unsqueeze(1)
