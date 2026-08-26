@@ -1,7 +1,8 @@
 import numpy as np
 import torch
 from torch.utils.data import Dataset,random_split
-from torchvision.io import read_image
+from PIL import Image
+from torchvision.transforms.v2.functional import to_image
 from torchvision.transforms import v2
 from sklearn.preprocessing import LabelEncoder
 import os
@@ -154,7 +155,7 @@ class LoadBRISC():
             cls = self.classes_abr[id.split('_')[1]]
             # img_path = glob.glob(os.path.join(self.cls_root,f'{mode}/{cls}/*{id}*'))[0]
             img_path = os.path.join(self.cls_root,f'{mode}/{cls}/brisc2025_{mode}_{id}.jpg')
-            img = read_image(img_path)
+            img = to_image(Image.open(img_path))
             img = v2.functional.resize(img,(224,224))
             img = v2.Grayscale(num_output_channels=1)(img)
             if cls == 'no_tumor':
@@ -162,7 +163,7 @@ class LoadBRISC():
             else:
                 # mask_path = glob.glob(os.path.join(self.seg_root,f'{mode}/masks/*{id}*'))[0]
                 mask_path = os.path.join(self.seg_root,f'{mode}/masks/brisc2025_{mode}_{id}.png')
-                mask = read_image(mask_path)
+                mask = to_image(Image.open(mask_path))
                 mask = v2.functional.resize(mask,(224,224))
                 mask = (mask >= 0.7)
             imgs.append(img)

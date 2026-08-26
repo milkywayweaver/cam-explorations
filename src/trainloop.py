@@ -3,7 +3,7 @@ from tqdm.auto import tqdm
 from torchmetrics.functional.segmentation import dice_score
 from sklearn.metrics import accuracy_score
 
-from config import CONFIG
+from src.config import CONFIG
 
 def train_step(model,criterion,optimizer,dataloader,device):
     model.to(device)
@@ -12,7 +12,7 @@ def train_step(model,criterion,optimizer,dataloader,device):
     for batch,(X,M,y) in enumerate(dataloader):
         X,M,y = X.to(device),M.to(device),y.to(device)
         y_logit = model(X)
-        y_mask = model.get_cam(relu=CONFIG['relu'])
+        y_mask = model.get_cam(threshold=CONFIG['threshold'])
         y = y.to(torch.float32)
         y_pred = torch.softmax(y_logit,1)
         
@@ -46,7 +46,7 @@ def val_step(model,criterion,dataloader,device,return_data=False):
         for batch,(X,M,y) in enumerate(dataloader):
             X,M,y = X.to(device),M.to(device),y.to(device)
             y_logit = model(X)
-            y_mask = model.get_cam(relu=CONFIG['relu'])
+            y_mask = model.get_cam(threshold=CONFIG['threshold'])
             y = y.to(torch.float32)
             y_pred = torch.softmax(y_logit,1)
 

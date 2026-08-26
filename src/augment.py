@@ -1,5 +1,5 @@
 from torchvision import transforms
-from config import CONFIG
+from src.config import CONFIG
     
 train_list = [transforms.ToPILImage(),
               transforms.Resize((224,224))]

@@ -8,14 +8,14 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
-from augment import train_transform,test_transform
-from briscloader import LoadBRISC
-from cam import CAM
-from trainloop import train_loop
-from evaluate import evaluate,plot_confmat,plot_history,plot_sample
+from src.augment import train_transform,test_transform
+from src.briscloader import LoadBRISC
+from src.models.cam import CAM
+from src.trainloop import train_loop
+from src.evaluate import evaluate,plot_confmat,plot_history,plot_sample
 
 import mlflow
-from config import CONFIG
+from src.config import CONFIG
 
 # SETUP ENVIRONMENT =========================================================================================================
 os.makedirs('saves',exist_ok=True)
@@ -27,6 +27,12 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 generator = torch.Generator().manual_seed(CONFIG['seed'])
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+print(f'Starting run with CONFIG:')
+for key,value in CONFIG.items():
+    print(f'{key}: {value}')
+print(f'device: {device}')
+
 
 mlflow.set_experiment('CAM (Zhang et al, 2018)')
 
@@ -53,7 +59,7 @@ test_dl = DataLoader(test_ds,
                      drop_last=False)
 
 # MODEL TRAINING
-MODEL= CAM(len(loader.classes),backbone=CONFIG['backbone'],ch_project=CONFIG['ch_project'])
+MODEL= CAM(len(loader.classes),backbone_model_type=CONFIG['backbone_model_type'],ch_project=CONFIG['ch_project'])
 EPOCHS = 20
 LR = 1e-3
 WD = 1e-4
@@ -71,7 +77,7 @@ results = evaluate(MODEL,test_dl)
 (Xs,ys,y_preds,Ms,cams) = results['data']
 M_bbox,cam_bbox = results['bbox']
 fit_time = t1-t0
-print(f'----- MODEL EVALUATION -----')
+print(f'----- TEST SET MODEL EVALUATION -----')
 print(f'Accuracy: {acc:.4f}')
 print(f'IoU     : {iou:.4f}')
 print(f'DSC     : {dsc:.4f}')
@@ -87,11 +93,11 @@ plot_confmat(ys,y_preds,classes=loader.classes)
 with mlflow.start_run(run_name=CONFIG['run_name']):
     mlflow.log_params({
         'seed':CONFIG['seed'],
-        'backbone':CONFIG['backbone'],
+        'backbone_model_type':CONFIG['backbone_model_type'],
         'augment':CONFIG['augment'],
         'batchsize':CONFIG['batch_size'],
-        'relu':CONFIG['relu'],
         'ch_project':CONFIG['ch_project'],
+        'threshold':CONFIG['threshold'],
         'epochs':EPOCHS,
         'lr':LR,
         'wd':WD
