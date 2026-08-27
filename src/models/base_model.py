@@ -53,8 +53,8 @@ class BaseModel(nn.Module):
         else:
             x = x.expand(-1,3,-1,-1)
 
-        fmaps = self.backbone(x)
-        self._fmaps_cls = self.classifier(fmaps)
+        self._fmaps = self.backbone(x)
+        self._fmaps_cls = self.classifier(self._fmaps)
         logits = self.gap(self._fmaps_cls).squeeze()
         self._preds = torch.argmax(logits,dim=1)
 
@@ -83,7 +83,7 @@ class BaseModel(nn.Module):
         cams_min = cams.min(dim=-1)[0].min(dim=-1)[0].unsqueeze(-1).unsqueeze(-1)
         cams_max = cams.max(dim=-1)[0].max(dim=-1)[0].unsqueeze(-1).unsqueeze(-1)
 
-        norm_cam = ((cams-cams_min)/(cams_max-cams_min+1e-8)).unsqueeze(1)
+        norm_cam = ((cams-cams_min)/(cams_max-cams_min+1e-8))
         norm_cam = torch.nn.functional.interpolate(norm_cam,img_size,mode='bilinear')
         
         preds_masks = norm_cam >= threshold

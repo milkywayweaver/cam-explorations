@@ -6,3 +6,4 @@ mlflow.db
 playground.ipynb
 run_result.out
 *.out
+__pycache__/

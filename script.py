@@ -11,8 +11,10 @@ from torch.utils.data import DataLoader
 from src.augment import train_transform,test_transform
 from src.briscloader import LoadBRISC
 from src.models.cam import CAM
-from src.trainloop import train_loop
-from src.evaluate import evaluate,plot_confmat,plot_history,plot_sample
+from src.models.gradcam import GradCAM
+from src.trainloop.forward_trainer import ForwardTrainer
+from src.trainloop.backward_trainer import BackwardTrainer
+# from src.evaluate import evaluate,plot_confmat,plot_history,plot_sample
 
 import mlflow
 from src.config import CONFIG
@@ -59,59 +61,60 @@ test_dl = DataLoader(test_ds,
                      drop_last=False)
 
 # MODEL TRAINING
-MODEL= CAM(len(loader.classes),backbone_model_type=CONFIG['backbone_model_type'],ch_project=CONFIG['ch_project'])
-EPOCHS = 20
+MODEL= GradCAM(len(loader.classes),backbone_model_type=CONFIG['backbone_model_type'],ch_project=CONFIG['ch_project'])
+EPOCHS = 5
 LR = 1e-3
 WD = 1e-4
 CRITERION = nn.CrossEntropyLoss()
 OPTIMIZER = torch.optim.AdamW(MODEL.parameters(),lr=LR,weight_decay=WD)
 SCHEDULER = torch.optim.lr_scheduler.ReduceLROnPlateau(OPTIMIZER, mode='min', factor=0.1, patience=10)
-t0 = time.time()
-history = train_loop(MODEL,EPOCHS,CRITERION,OPTIMIZER,device,train_dl,val_dl,SCHEDULER)
-t1 = time.time()
+
+loop = ForwardTrainer(MODEL,CRITERION,OPTIMIZER,device,SCHEDULER)
+history = loop.fit(train_dl,val_dl,EPOCHS)
 torch.save(MODEL.state_dict(),f'saves/CAM_{CONFIG['run_name']}.pth')
+print(f'Training completed in {loop.fit_time:.4f} seconds.')
 
-# MODEL EVALUATION
-results = evaluate(MODEL,test_dl)
-(acc,dsc,iou) = results['metrics']
-(Xs,ys,y_preds,Ms,cams) = results['data']
-M_bbox,cam_bbox = results['bbox']
-fit_time = t1-t0
-print(f'----- TEST SET MODEL EVALUATION -----')
-print(f'Accuracy: {acc:.4f}')
-print(f'IoU     : {iou:.4f}')
-print(f'DSC     : {dsc:.4f}')
-print(f'Time    : {fit_time:.4f} s')
+# # MODEL EVALUATION
+# results = evaluate(MODEL,test_dl)
+# (acc,dsc,iou) = results['metrics']
+# (Xs,ys,y_preds,Ms,cams) = results['data']
+# M_bbox,cam_bbox = results['bbox']
+# fit_time = loop.fit_time
+# print(f'----- TEST SET MODEL EVALUATION -----')
+# print(f'Accuracy: {acc:.4f}')
+# print(f'IoU     : {iou:.4f}')
+# print(f'DSC     : {dsc:.4f}')
+# print(f'Time    : {fit_time:.4f} s')
 
-hist_fig = plt.figure(figsize=(15,4))
-plot_history(EPOCHS,history)
+# hist_fig = plt.figure(figsize=(15,4))
+# plot_history(EPOCHS,history)
 
-confmat_fig = plt.figure(figsize=(7,6))
-plot_confmat(ys,y_preds,classes=loader.classes)
+# confmat_fig = plt.figure(figsize=(7,6))
+# plot_confmat(ys,y_preds,classes=loader.classes)
 
-# LOGGING
-with mlflow.start_run(run_name=CONFIG['run_name']):
-    mlflow.log_params({
-        'seed':CONFIG['seed'],
-        'backbone_model_type':CONFIG['backbone_model_type'],
-        'augment':CONFIG['augment'],
-        'batchsize':CONFIG['batch_size'],
-        'ch_project':CONFIG['ch_project'],
-        'threshold':CONFIG['threshold'],
-        'epochs':EPOCHS,
-        'lr':LR,
-        'wd':WD
-    })
-    mlflow.log_metrics({
-        'accuracy':acc,
-        'detection_iou':iou,
-        'segmentation_dsc':dsc,
-        'fit_time':fit_time
-    })
-    mlflow.log_figure(hist_fig,'training_history.png')
-    mlflow.log_figure(confmat_fig,'confmat.png')
+# # LOGGING
+# with mlflow.start_run(run_name=CONFIG['run_name']):
+#     mlflow.log_params({
+#         'seed':CONFIG['seed'],
+#         'backbone_model_type':CONFIG['backbone_model_type'],
+#         'augment':CONFIG['augment'],
+#         'batchsize':CONFIG['batch_size'],
+#         'ch_project':CONFIG['ch_project'],
+#         'threshold':CONFIG['threshold'],
+#         'epochs':EPOCHS,
+#         'lr':LR,
+#         'wd':WD
+#     })
+#     mlflow.log_metrics({
+#         'accuracy':acc,
+#         'detection_iou':iou,
+#         'segmentation_dsc':dsc,
+#         'fit_time':fit_time
+#     })
+#     mlflow.log_figure(hist_fig,'training_history.png')
+#     mlflow.log_figure(confmat_fig,'confmat.png')
 
-plt.close(hist_fig)
-plt.close(confmat_fig)
+# plt.close(hist_fig)
+# plt.close(confmat_fig)
 
 
