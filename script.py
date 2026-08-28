@@ -10,8 +10,6 @@ from torch.utils.data import DataLoader
 
 from src.augment import train_transform,test_transform
 from src.briscloader import LoadBRISC
-from src.models.cam import CAM
-from src.models.gradcam import GradCAM
 from src.trainloop.forward_trainer import ForwardTrainer
 from src.evaluate import evaluate,plot_confmat,plot_history,plot_sample,plot_distribution
 
@@ -31,7 +29,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 print(f'Starting run with CONFIG:')
 for key,value in CONFIG.items():
-    print(f'{key}: {value}')
+    print(f'{key}:', value)
 print(f'device: {device}')
 
 
@@ -63,7 +61,7 @@ test_dl = DataLoader(test_ds,
 classes = loader.classes
 
 # MODEL TRAINING
-MODEL= CAM(len(loader.classes),backbone_model_type=CONFIG['backbone_model_type'],ch_project=CONFIG['ch_project'])
+MODEL = CONFIG['cam_method'](len(classes),backbone=CONFIG['backbone'],classifier=CONFIG['classifier'],ch_project=CONFIG['ch_project'])
 LR = 1e-3
 WD = 1e-4
 CRITERION = nn.CrossEntropyLoss()
@@ -86,16 +84,21 @@ print(f'IoU     : {iou:.4f}')
 print(f'DSC     : {dsc:.4f}')
 print(f'Time    : {fit_time:.4f} s')
 
+os.makedirs('figs',exist_ok=True)
+
 hist_fig = plt.figure(figsize=(15,4))
 plot_history(CONFIG['epochs'],history)
+plt.savefig('figs/training_curve.png')
 
 confmat_fig = plt.figure(figsize=(7,6))
 plot_confmat(data['y'],data['y_pred'],classes=loader.classes)
+plt.savefig('figs/confmat.png')
 
 samples = []
-for i in range(3):
+for i in range(9):
     sample = plt.figure(figsize=(12,4))
     plot_sample(data,classes=classes)
+    plt.savefig(f'figs/sample_{i+1}.png')
     samples.append(sample)
 
 plt.figure(figsize=(10,3))

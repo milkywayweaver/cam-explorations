@@ -1,13 +1,12 @@
 import torch
-from .base_model import BaseModel
+from src.models.modules.base_model import BaseModel
 
 class GradCAM(BaseModel):
-    def __init__(self,num_class:int,backbone_model_type:str='vgg',ch_project:str='mapper'):
-        super().__init__(num_class=num_class,backbone_model_type=backbone_model_type,ch_project=ch_project)
+    def __init__(self,num_classes:int,backbone:torch.nn.Module,classifier:torch.nn.Module,ch_project:str='mapper'):
+        super().__init__(num_classes=num_classes,backbone=backbone,classifier=classifier,ch_project=ch_project)
 
     def forward(self,x:torch.Tensor):
         self.x = x.clone()
-        # Overrides the default forward by applying gradient hook
         if self.ch_project == 'mapper':
             x = self.mapper(x)
         else:
@@ -17,8 +16,8 @@ class GradCAM(BaseModel):
         # Register hook 
         if self._fmaps.requires_grad:
             self._fmaps.register_hook(self._get_grads)
-        self._fmaps_cls = self.classifier(self._fmaps)
-        logits = self.gap(self._fmaps_cls).squeeze()
+
+        logits = self.classifier(self._fmaps)
         self._preds = torch.argmax(logits,dim=1)
 
         return logits
@@ -41,3 +40,4 @@ class GradCAM(BaseModel):
         cams = torch.relu(torch.sum(cams,dim=1)).unsqueeze(1)
         cams = self._process_cam(cams,threshold=threshold)
         return cams
+

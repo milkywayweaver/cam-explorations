@@ -3,9 +3,71 @@ from torch import nn
 from torchvision import models
 
 class BaseModel(nn.Module):
-    def __init__(self,num_class:int,backbone_model_type:str='vgg',ch_project:str='mapper'):
+    def __init__(self,num_classes:int,backbone:torch.nn.Module,classifier:torch.nn.Module,ch_project:str='mapper'):
         super().__init__()
-        self.num_class = num_class
+        self.num_classes = num_classes
+        self.backbone = backbone()
+        fmaps_shape = self.backbone.output_shape
+        self.classifier = classifier(num_classes=num_classes,fmaps_shape=fmaps_shape)
+                
+        if ch_project not in ['mapper','duplicate']:
+            raise ValueError('Unknown style! Use "mapper",or "duplicate".')
+        self.ch_project = ch_project
+        if self.ch_project == 'mapper':
+            self.mapper = nn.Conv2d(1,3,kernel_size=3,stride=1,padding=1)
+
+    def forward(self,x:torch.Tensor):
+        pass
+
+    def get_cam(self,threshold:float=0.7) -> torch.Tensor:
+        '''
+        Helper function to create CAMs based on instance variable.
+        Args:
+            threshold (float || str, default=0.7): Threshold to use for CAM to mask conversion. To be passed to _cam_to_mask method to convert CAMs into masks. Pass "raw" to get raw cam instead of mask.
+        Returns:
+            cams (torch.Tensor): CAMs with a shape of Bx1xHxW.
+        '''
+        raise NotImplementedError('get_cam method has not been implemented.')
+
+    def _process_cam(self,cams:torch.Tensor,threshold:float|str=0.7,img_size:tuple[int,int]=(224,224)) -> torch.Tensor:
+        '''
+        Helper function to convert raw CAM to prediction mask
+        Args:
+            cams (torch.Tensor): CAMs with Bx1xHxW.
+            threshold (float | str, default=0.7): Threshold to use for CAM to mask conversion. Use "raw" to keep raw CAM.
+            img_size (tuple[int,int], default=(224,224)): The size of the original input image, used to scale the obtained masks back to original size.
+        Returns:
+            masks (torch.Tensor): Masks obtained from thresholding CAMs.
+        '''
+        cams_min = cams.min(dim=-1)[0].min(dim=-1)[0].unsqueeze(-1).unsqueeze(-1)
+        cams_max = cams.max(dim=-1)[0].max(dim=-1)[0].unsqueeze(-1).unsqueeze(-1)
+
+        norm_cam = ((cams-cams_min)/(cams_max-cams_min+1e-8))
+        norm_cam = torch.nn.functional.interpolate(norm_cam,img_size,mode='bilinear')
+
+        if threshold != 'raw':
+            norm_cam = norm_cam >= threshold
+        return norm_cam
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+class BaseModelOld(nn.Module):
+    def __init__(self,num_classes:int,backbone_model_type:str='vgg',ch_project:str='mapper'):
+        super().__init__()
+        self.num_classes = num_classes
 
         self.backbone_model_type = backbone_model_type
         if self.backbone_model_type == 'vgg':
@@ -43,7 +105,7 @@ class BaseModel(nn.Module):
             # nn.Conv2d(128,128,kernel_size=3,stride=1,padding=1),
             # nn.BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
             # nn.ReLU(),
-            nn.Conv2d(128,num_class,kernel_size=1,stride=1,padding=0)
+            nn.Conv2d(128,num_classes,kernel_size=1,stride=1,padding=0)
         )
         self.gap = nn.AdaptiveAvgPool2d(output_size=(1,1))
 
@@ -89,3 +151,5 @@ class BaseModel(nn.Module):
         if threshold != 'raw':
             norm_cam = norm_cam >= threshold
         return norm_cam
+
+
