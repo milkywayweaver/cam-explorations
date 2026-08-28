@@ -13,7 +13,7 @@ from src.briscloader import LoadBRISC
 from src.models.cam import CAM
 from src.models.gradcam import GradCAM
 from src.trainloop.forward_trainer import ForwardTrainer
-from src.evaluate import evaluate,plot_confmat,plot_history,plot_sample
+from src.evaluate import evaluate,plot_confmat,plot_history,plot_sample,plot_distribution
 
 import mlflow
 from src.config import CONFIG
@@ -60,6 +60,7 @@ test_dl = DataLoader(test_ds,
                      batch_size=CONFIG['batch_size'],
                      shuffle=False,
                      drop_last=False)
+classes = loader.classes
 
 # MODEL TRAINING
 MODEL= CAM(len(loader.classes),backbone_model_type=CONFIG['backbone_model_type'],ch_project=CONFIG['ch_project'])
@@ -90,6 +91,18 @@ plot_history(CONFIG['epochs'],history)
 
 confmat_fig = plt.figure(figsize=(7,6))
 plot_confmat(data['y'],data['y_pred'],classes=loader.classes)
+
+samples = []
+for i in range(3):
+    sample = plt.figure(figsize=(12,4))
+    plot_sample(data,classes=classes)
+    samples.append(sample)
+
+plt.figure(figsize=(10,3))
+plt.subplot(1,2,1)
+plot_distribution(data,'iou')
+plt.subplot(1,2,2)
+plot_distribution(data,'dsc')
 
 # # LOGGING
 # with mlflow.start_run(run_name=CONFIG['run_name']):
