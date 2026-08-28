@@ -39,5 +39,5 @@ class GradCAM(BaseModel):
         grad_weights = self.grads.mean(dim=(2,3)).unsqueeze(-1).unsqueeze(-1)
         cams = self._fmaps*grad_weights
         cams = torch.relu(torch.sum(cams,dim=1)).unsqueeze(1)
-        cams = self._cam_to_mask(cams,threshold=threshold)
+        cams = self._process_cam(cams,threshold=threshold)
         return cams

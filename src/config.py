@@ -5,5 +5,6 @@ CONFIG = {
     'augment':[None], # Used in augment.py -- List of strings: "geometric", "color", "blur", "erasing"
     'batch_size':8, # Used in script.py # Int
     'ch_project':'mapper', # Used in script.py # String: "mapper", "duplicate"
-    'threshold':0.7 # Used in trainloop.py
+    'threshold':0.7, # Used in trainloop.py
+    'epochs':5, # Used in script.py
 }

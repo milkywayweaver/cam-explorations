@@ -6,6 +6,7 @@ class CAM(BaseModel):
         super().__init__(num_class=num_class,backbone_model_type=backbone_model_type,ch_project=ch_project)
 
     def get_cam(self,threshold:float=0.7):
+        
         cams = self._fmaps_cls[torch.arange(self._fmaps_cls.shape[0]),self._preds,:,:].unsqueeze(1)
-        cams = self._cam_to_mask(cams,threshold=threshold)
+        cams = self._process_cam(cams,threshold=threshold)
         return cams

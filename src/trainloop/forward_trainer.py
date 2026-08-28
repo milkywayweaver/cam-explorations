@@ -29,7 +29,7 @@ class ForwardTrainer(BaseTrainer):
             losses += loss.item()
             accs += accuracy_score(y.argmax(1).cpu(),y_probs.argmax(1).cpu().detach())
             
-            dscs += dice_score(y_masks.long().cpu(),M.long().cpu(),num_classes=2,input_format='index',average='macro',include_background=False).mean().item()
+            dscs += dice_score(y_masks.long().cpu(),M.long().cpu(),num_classes=2,input_format='index',average='macro',include_background=False).median().item()
 
             self.optimizer.zero_grad()
             loss.backward()
@@ -54,7 +54,7 @@ class ForwardTrainer(BaseTrainer):
 
                 losses += self.criterion(y_logits,y).item()
                 accs += accuracy_score(y.argmax(1).cpu(),y_probs.argmax(1).cpu().detach())
-                dscs += dice_score(y_masks.long().cpu(),M.long().cpu(),num_classes=2,input_format='index',average='macro',include_background=False).mean().item()
+                dscs += dice_score(y_masks.long().cpu(),M.long().cpu(),num_classes=2,input_format='index',average='macro',include_background=False).median().item()
 
             losses /= len(dataloader)
             accs /= len(dataloader)

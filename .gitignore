@@ -3,7 +3,7 @@
 /saves/
 /mlruns/
 mlflow.db
-playground.ipynb
+*.ipynb
 run_result.out
 *.out
 __pycache__/

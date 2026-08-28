@@ -13,8 +13,7 @@ from src.briscloader import LoadBRISC
 from src.models.cam import CAM
 from src.models.gradcam import GradCAM
 from src.trainloop.forward_trainer import ForwardTrainer
-from src.trainloop.backward_trainer import BackwardTrainer
-# from src.evaluate import evaluate,plot_confmat,plot_history,plot_sample
+from src.evaluate import evaluate,plot_confmat,plot_history,plot_sample
 
 import mlflow
 from src.config import CONFIG
@@ -40,7 +39,9 @@ mlflow.set_experiment('CAM (Zhang et al, 2018)')
 
 # READ DATA ================================================================================================================
 loader = LoadBRISC()
-train_ds,val_ds,test_ds = loader.load(classes='tumor',
+### !!! IMPORTANT !!!
+### Tumor only selection has not been implemented in the evaluation module
+train_ds,val_ds,test_ds = loader.load(classes='tumor', # type: ignore
                                       planes='all',
                                       encoding_type='onehot',
                                       split_val=True,
@@ -61,8 +62,7 @@ test_dl = DataLoader(test_ds,
                      drop_last=False)
 
 # MODEL TRAINING
-MODEL= GradCAM(len(loader.classes),backbone_model_type=CONFIG['backbone_model_type'],ch_project=CONFIG['ch_project'])
-EPOCHS = 5
+MODEL= CAM(len(loader.classes),backbone_model_type=CONFIG['backbone_model_type'],ch_project=CONFIG['ch_project'])
 LR = 1e-3
 WD = 1e-4
 CRITERION = nn.CrossEntropyLoss()
@@ -70,27 +70,26 @@ OPTIMIZER = torch.optim.AdamW(MODEL.parameters(),lr=LR,weight_decay=WD)
 SCHEDULER = torch.optim.lr_scheduler.ReduceLROnPlateau(OPTIMIZER, mode='min', factor=0.1, patience=10)
 
 loop = ForwardTrainer(MODEL,CRITERION,OPTIMIZER,device,SCHEDULER)
-history = loop.fit(train_dl,val_dl,EPOCHS)
+history = loop.fit(train_dl,val_dl,CONFIG['epochs'])
 torch.save(MODEL.state_dict(),f'saves/CAM_{CONFIG['run_name']}.pth')
 print(f'Training completed in {loop.fit_time:.4f} seconds.')
 
-# # MODEL EVALUATION
-# results = evaluate(MODEL,test_dl)
-# (acc,dsc,iou) = results['metrics']
-# (Xs,ys,y_preds,Ms,cams) = results['data']
-# M_bbox,cam_bbox = results['bbox']
-# fit_time = loop.fit_time
-# print(f'----- TEST SET MODEL EVALUATION -----')
-# print(f'Accuracy: {acc:.4f}')
-# print(f'IoU     : {iou:.4f}')
-# print(f'DSC     : {dsc:.4f}')
-# print(f'Time    : {fit_time:.4f} s')
+# MODEL EVALUATION
+results = evaluate(MODEL,test_dl)
+(acc,dsc,iou) = results['metrics']
+data = results['data']
+fit_time = loop.fit_time
+print(f'----- TEST SET MODEL EVALUATION -----')
+print(f'Accuracy: {acc:.4f}')
+print(f'IoU     : {iou:.4f}')
+print(f'DSC     : {dsc:.4f}')
+print(f'Time    : {fit_time:.4f} s')
 
-# hist_fig = plt.figure(figsize=(15,4))
-# plot_history(EPOCHS,history)
+hist_fig = plt.figure(figsize=(15,4))
+plot_history(CONFIG['epochs'],history)
 
-# confmat_fig = plt.figure(figsize=(7,6))
-# plot_confmat(ys,y_preds,classes=loader.classes)
+confmat_fig = plt.figure(figsize=(7,6))
+plot_confmat(data['y'],data['y_pred'],classes=loader.classes)
 
 # # LOGGING
 # with mlflow.start_run(run_name=CONFIG['run_name']):
@@ -101,7 +100,7 @@ print(f'Training completed in {loop.fit_time:.4f} seconds.')
 #         'batchsize':CONFIG['batch_size'],
 #         'ch_project':CONFIG['ch_project'],
 #         'threshold':CONFIG['threshold'],
-#         'epochs':EPOCHS,
+#         'epochs':CONFIG['epochs'],
 #         'lr':LR,
 #         'wd':WD
 #     })

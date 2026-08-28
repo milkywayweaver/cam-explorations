@@ -155,7 +155,7 @@ class LoadBRISC():
             cls = self.classes_abr[id.split('_')[1]]
             # img_path = glob.glob(os.path.join(self.cls_root,f'{mode}/{cls}/*{id}*'))[0]
             img_path = os.path.join(self.cls_root,f'{mode}/{cls}/brisc2025_{mode}_{id}.jpg')
-            img = to_image(Image.open(img_path))
+            img = to_image(Image.open(img_path).convert("L"))
             img = v2.functional.resize(img,(224,224))
             img = v2.Grayscale(num_output_channels=1)(img)
             if cls == 'no_tumor':
@@ -163,13 +163,13 @@ class LoadBRISC():
             else:
                 # mask_path = glob.glob(os.path.join(self.seg_root,f'{mode}/masks/*{id}*'))[0]
                 mask_path = os.path.join(self.seg_root,f'{mode}/masks/brisc2025_{mode}_{id}.png')
-                mask = to_image(Image.open(mask_path))
+                mask = to_image(Image.open(mask_path).convert("L"))
                 mask = v2.functional.resize(mask,(224,224))
                 mask = (mask >= 0.7)
             imgs.append(img)
             masks.append(mask)
-        imgs = torch.cat(imgs).to(torch.float32).unsqueeze(1)
-        masks = torch.cat(masks).to(torch.float32).unsqueeze(1)
+        imgs = torch.stack(imgs).to(torch.float32)/255
+        masks = torch.stack(masks).to(torch.float32)
         return imgs,masks
 
 class DatasetClass(Dataset):

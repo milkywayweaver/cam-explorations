@@ -1,13 +1,17 @@
 from torchvision import transforms
 from src.config import CONFIG
     
-train_list = [transforms.ToPILImage(),
-              transforms.Resize((224,224))]
+train_list = [
+    transforms.ToPILImage(),
+    transforms.Resize((224,224))
+    ]
 
 if 'geometric' in CONFIG['augment']:
-    geometric_transform = [transforms.RandomRotation(180),
-                           transforms.RandomHorizontalFlip(p=0.5),
-                           transforms.RandomVerticalFlip(p=0.5)]
+    geometric_transform = [
+        transforms.RandomRotation(180),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomVerticalFlip(p=0.5)
+        ]
     train_list.extend(geometric_transform)
 if 'color' in CONFIG['augment']:
     train_list.append(transforms.ColorJitter(hue=0,saturation=0,brightness=0.2,contrast=0.2))

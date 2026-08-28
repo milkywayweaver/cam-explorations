@@ -40,9 +40,9 @@ class BaseModel(nn.Module):
             nn.Conv2d(fmaps_count,128,kernel_size=3,stride=1,padding=1),
             nn.BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
             nn.ReLU(),
-            nn.Conv2d(128,128,kernel_size=3,stride=1,padding=1),
-            nn.BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
-            nn.ReLU(),
+            # nn.Conv2d(128,128,kernel_size=3,stride=1,padding=1),
+            # nn.BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            # nn.ReLU(),
             nn.Conv2d(128,num_class,kernel_size=1,stride=1,padding=0)
         )
         self.gap = nn.AdaptiveAvgPool2d(output_size=(1,1))
@@ -64,18 +64,18 @@ class BaseModel(nn.Module):
         '''
         Helper function to create CAMs based on instance variable.
         Args:
-            threshold (float, default=0.7): Threshold to use for CAM to mask conversion. To be passed to _cam_to_mask method to convert CAMs into masks.
+            threshold (float || str, default=0.7): Threshold to use for CAM to mask conversion. To be passed to _cam_to_mask method to convert CAMs into masks. Pass "raw" to get raw cam instead of mask.
         Returns:
             cams (torch.Tensor): CAMs with a shape of Bx1xHxW.
         '''
         raise NotImplementedError('get_cam method has not been implemented.')
 
-    def _cam_to_mask(self,cams:torch.Tensor,threshold:float=0.7,img_size:tuple[int,int]=(224,224)) -> torch.Tensor:
+    def _process_cam(self,cams:torch.Tensor,threshold:float|str=0.7,img_size:tuple[int,int]=(224,224)) -> torch.Tensor:
         '''
         Helper function to convert raw CAM to prediction mask
         Args:
             cams (torch.Tensor): CAMs with Bx1xHxW.
-            threshold (float, default=0.7): Threshold to use for CAM to mask conversion.
+            threshold (float | str, default=0.7): Threshold to use for CAM to mask conversion. Use "raw" to keep raw CAM.
             img_size (tuple[int,int], default=(224,224)): The size of the original input image, used to scale the obtained masks back to original size.
         Returns:
             masks (torch.Tensor): Masks obtained from thresholding CAMs.
@@ -85,6 +85,7 @@ class BaseModel(nn.Module):
 
         norm_cam = ((cams-cams_min)/(cams_max-cams_min+1e-8))
         norm_cam = torch.nn.functional.interpolate(norm_cam,img_size,mode='bilinear')
-        
-        preds_masks = norm_cam >= threshold
-        return preds_masks
+
+        if threshold != 'raw':
+            norm_cam = norm_cam >= threshold
+        return norm_cam
