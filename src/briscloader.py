@@ -188,6 +188,6 @@ class DatasetClass(Dataset):
         label = self.labels[index]
 
         if self.transform:
-            img = self.transform(img)
+            img,mask = self.transform(img,mask)
 
         return img,mask,label

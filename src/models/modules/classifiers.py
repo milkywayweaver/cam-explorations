@@ -1,7 +1,11 @@
 import torch
 from torch import nn
 
-class BaseClassifier(nn.Module):
+class ClassifierMeta(type):
+    def __str__(cls):
+        return f'{cls.__name__}'
+
+class BaseClassifier(nn.Module,metaclass=ClassifierMeta):
     '''
     Base class for classifier class.
     Child classifier class needs to implement self.classifier with nn.Module object

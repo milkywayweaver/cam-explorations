@@ -2,7 +2,11 @@ import torch
 from torch import nn
 from torchvision import models
 
-class BaseModel(nn.Module):
+class ModelMeta(type):
+    def __str__(cls):
+        return f'{cls.__name__}'
+
+class BaseModel(nn.Module,metaclass=ModelMeta):
     def __init__(self,num_classes:int,backbone:torch.nn.Module,classifier:torch.nn.Module,ch_project:str='mapper'):
         super().__init__()
         self.num_classes = num_classes

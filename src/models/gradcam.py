@@ -41,3 +41,6 @@ class GradCAM(BaseModel):
         cams = self._process_cam(cams,threshold=threshold)
         return cams
 
+    def __str__(self,):
+        return 'GradCAM (Selvaraju et al, 2017)'
+

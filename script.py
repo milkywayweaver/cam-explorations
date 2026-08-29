@@ -29,8 +29,10 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 print(f'Starting run with CONFIG:')
 for key,value in CONFIG.items():
-    print(f'{key}:', value)
+    print(f'{key}: {str(value)}')
 print(f'device: {device}')
+
+
 
 
 mlflow.set_experiment('CAM (Zhang et al, 2018)')
@@ -107,29 +109,29 @@ plot_distribution(data,'iou')
 plt.subplot(1,2,2)
 plot_distribution(data,'dsc')
 
-# # LOGGING
-# with mlflow.start_run(run_name=CONFIG['run_name']):
-#     mlflow.log_params({
-#         'seed':CONFIG['seed'],
-#         'backbone_model_type':CONFIG['backbone_model_type'],
-#         'augment':CONFIG['augment'],
-#         'batchsize':CONFIG['batch_size'],
-#         'ch_project':CONFIG['ch_project'],
-#         'threshold':CONFIG['threshold'],
-#         'epochs':CONFIG['epochs'],
-#         'lr':LR,
-#         'wd':WD
-#     })
-#     mlflow.log_metrics({
-#         'accuracy':acc,
-#         'detection_iou':iou,
-#         'segmentation_dsc':dsc,
-#         'fit_time':fit_time
-#     })
-#     mlflow.log_figure(hist_fig,'training_history.png')
-#     mlflow.log_figure(confmat_fig,'confmat.png')
+# LOGGING
+with mlflow.start_run(run_name=CONFIG['run_name']):
+    mlflow.log_params({
+        'seed':CONFIG['seed'],
+        'backbone':CONFIG['backbone'],
+        'augment':CONFIG['augment'],
+        'batchsize':CONFIG['batch_size'],
+        'ch_project':CONFIG['ch_project'],
+        'threshold':CONFIG['threshold'],
+        'epochs':CONFIG['epochs'],
+        'lr':LR,
+        'wd':WD
+    })
+    mlflow.log_metrics({
+        'accuracy':acc,
+        'detection_iou':iou,
+        'segmentation_dsc':dsc,
+        'fit_time':fit_time
+    })
+    mlflow.log_figure(hist_fig,'training_history.png')
+    mlflow.log_figure(confmat_fig,'confmat.png')
 
-# plt.close(hist_fig)
-# plt.close(confmat_fig)
+plt.close(hist_fig)
+plt.close(confmat_fig)
 
 

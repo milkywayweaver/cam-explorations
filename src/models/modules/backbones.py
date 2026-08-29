@@ -2,7 +2,11 @@ import torch
 from torch import nn
 from torchvision import models
 
-class BaseBackbone(nn.Module):
+class BackboneMeta(type):
+    def __str__(cls):
+        return f'{cls.__name__}'
+
+class BaseBackbone(nn.Module,metaclass=BackboneMeta):
     '''
     Base class for backbone class.
     Child backbone class needs to implement self.backbone with nn.Module object
@@ -28,7 +32,7 @@ class VGGBackbone(BaseBackbone):
     def forward(self,x:torch.Tensor):
         return self.backbone(x)
 
-    def __str__(self,):
+    def __str__(cls,):
         return 'VGG'
 
 class ResNetBackbone(BaseBackbone):
@@ -41,7 +45,7 @@ class ResNetBackbone(BaseBackbone):
     def forward(self,x:torch.Tensor):
         return self.backbone(x)
 
-    def __str__(self,):
+    def __str__(cls,):
         return 'ResNet'
 
 class EffNetBackbone(BaseBackbone):
@@ -54,7 +58,7 @@ class EffNetBackbone(BaseBackbone):
     def forward(self,x:torch.Tensor):
         return self.backbone(x)
 
-    def __str__(self,):
+    def __str__(cls,):
         return 'EfficientNet'
 
 if __name__ == '__main__':

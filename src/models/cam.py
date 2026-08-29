@@ -32,6 +32,9 @@ class CAM(BaseModel):
         cams = self._process_cam(cams,threshold=threshold)
         return cams
 
+    def __str__(self,):
+        return 'CAM (Zhou et al, 2016)'
+
 class ConvCAM(BaseModel):
     '''
     CAM generation method based on Zhang et al. (2018).
@@ -57,7 +60,9 @@ class ConvCAM(BaseModel):
         return logits
 
     def get_cam(self,threshold:float=0.7):
-        
         cams = self._fmaps_cls[torch.arange(self._fmaps_cls.shape[0]),self._preds,:,:].unsqueeze(1)
         cams = self._process_cam(cams,threshold=threshold)
         return cams
+
+    def __str__(self,):
+        return 'CAM (Zhang et al, 2018)'
