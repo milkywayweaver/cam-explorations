@@ -1,12 +1,12 @@
 from src.models.modules.backbones import VGGBackbone,ResNetBackbone,EffNetBackbone
 from src.models.modules.classifiers import ConvClassifier,GAPClassifier,MLPClassifier
-from src.models.gradcam import GradCAM
+from src.models.gradcam import GradCAM,GradCAMPlusPlus
 from src.models.cam import ConvCAM,CAM
 import torch
 
 
 if __name__ == '__main__':
-    cam = GradCAM(4,backbone=VGGBackbone,classifier=MLPClassifier,ch_project='mapper')
+    cam = GradCAMPlusPlus(4,backbone=VGGBackbone,classifier=MLPClassifier,ch_project='mapper')
     print(cam.classifier)
 
     X = torch.rand((8,1,224,224))

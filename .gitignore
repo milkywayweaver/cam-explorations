@@ -1,6 +1,7 @@
 /brisc2025/
 .vscode/
 /saves/
+/figs/
 /mlruns/
 mlflow.db
 *.ipynb
