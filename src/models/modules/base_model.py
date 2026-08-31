@@ -33,7 +33,7 @@ class BaseModel(nn.Module,metaclass=ModelMeta):
         '''
         raise NotImplementedError('get_cam method has not been implemented.')
 
-    def _process_cam(self,cams:torch.Tensor,threshold:float|str=0.7,img_size:tuple[int,int]=(224,224)) -> torch.Tensor:
+    def _process_cam(self,cams:torch.Tensor,threshold:float|str=0.7,img_size:tuple[int,int]|None=(224,224)) -> torch.Tensor:
         '''
         Helper function to convert raw CAM to prediction mask
         Args:
@@ -47,10 +47,11 @@ class BaseModel(nn.Module,metaclass=ModelMeta):
         cams_max = cams.max(dim=-1)[0].max(dim=-1)[0].unsqueeze(-1).unsqueeze(-1)
 
         norm_cam = ((cams-cams_min)/(cams_max-cams_min+1e-8))
-        norm_cam = torch.nn.functional.interpolate(norm_cam,img_size,mode='bilinear')
+        if img_size:
+            norm_cam = torch.nn.functional.interpolate(norm_cam,img_size,mode='bilinear')
 
         if threshold != 'raw':
-            norm_cam = norm_cam >= threshold
+            norm_cam = norm_cam >= threshold # type: ignore
         return norm_cam
 
 
@@ -153,7 +154,7 @@ class BaseModelOld(nn.Module):
         norm_cam = torch.nn.functional.interpolate(norm_cam,img_size,mode='bilinear')
 
         if threshold != 'raw':
-            norm_cam = norm_cam >= threshold
+            norm_cam = norm_cam >= threshold # type: ignore
         return norm_cam
 
 

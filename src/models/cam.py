@@ -75,7 +75,7 @@ class ScoreCAM(BaseModel):
     '''
     def __init__(self,num_classes:int,backbone:torch.nn.Module,classifier:torch.nn.Module,ch_project:str='mapper'):
         super().__init__(num_classes=num_classes,backbone=backbone,classifier=classifier,ch_project=ch_project)
-        self.compressed_size = 4
+        self.compressed_size = 64
         self.compressor = torch.nn.Conv2d(
             self.backbone.output_shape[1],self.compressed_size,kernel_size=(1,1),stride=1,padding=0
             )
@@ -106,12 +106,9 @@ class ScoreCAM(BaseModel):
                 masked_x = self.x*mask 
 
                 masked_logits = self.forward(masked_x)
-                original_logits = self.forward(self.x)
-
                 masked_scores = masked_logits[torch.arange(masked_logits.shape[0]),self._preds]
-                original_scores = original_logits[torch.arange(original_logits.shape[0]),self._preds]
 
-                S = masked_scores-original_scores # Bx1
+                S = masked_scores # Bx1
                 Ss.append(S.unsqueeze(1))
         Ss = torch.cat(Ss,dim=1)
         alpha = torch.softmax(Ss,dim=1).unsqueeze(-1).unsqueeze(-1)
@@ -122,4 +119,43 @@ class ScoreCAM(BaseModel):
 
     def __str__(self,):
         return 'ScoreCAM (Wang et al, 2020)'
+
+class FIMFScoreCAM(BaseModel):
+    def __init__(self,num_classes:int,backbone:torch.nn.Module,classifier:torch.nn.Module,ch_project:str='mapper'):
+        super().__init__(num_classes=num_classes,backbone=backbone,classifier=classifier,ch_project=ch_project)
+
+    def forward(self,x:torch.Tensor):
+        if self.ch_project == 'mapper':
+            x = self.mapper(x)
+        else:
+            x = x.expand(-1,3,-1,-1)
+
+        self._fmaps = self.backbone(x)
+        logits = self.classifier(self._fmaps)
+        self._preds = torch.argmax(logits,dim=1)
+
+        return logits
+
+    def get_cam(self,threshold:float=0.7):
+        Cs = [] # BxC 
+        with torch.inference_mode():
+            for i in range(self._fmaps.shape[1]):
+                mask = self._fmaps[:,i].unsqueeze(1)
+                mask = torch.relu(mask)
+                mask = self._process_cam(mask,threshold='raw',img_size=None)
+                masked_fmaps = self._fmaps*mask 
+
+                masked_logits = self.classifier(masked_fmaps)
+                masked_scores = masked_logits[torch.arange(masked_logits.shape[0]),self._preds]
+
+                C = masked_scores
+                Cs.append(C.unsqueeze(1))
+        Cs = torch.cat(Cs,dim=1)
+        alpha = torch.softmax(Cs,dim=1).unsqueeze(-1).unsqueeze(-1)
     
+        cams = torch.relu(torch.sum(torch.relu(alpha*self._fmaps),dim=1,keepdim=True))
+        cams = self._process_cam(cams,threshold=threshold)
+        return cams
+
+    def __str__(self,):
+        return 'FIMF ScoreCAM (Li et al, 2022)'
