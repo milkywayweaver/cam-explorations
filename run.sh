@@ -18,5 +18,5 @@ fi
 fi
 unset __conda_setup
 # <<< conda initialize <<<
-conda activate torch-rocm
+conda activate torch
 python3 script.py > run_result.out

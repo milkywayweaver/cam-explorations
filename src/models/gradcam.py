@@ -62,5 +62,5 @@ class GradCAMPlusPlus(GradCAM):
         cams = self._process_cam(cams,threshold=threshold)
         return cams
 
-    def __str__(self,):
+    def __str__(self,): # type: ignore
         return 'GradCAM++ (Chattopadhyay et al, 2017)'
