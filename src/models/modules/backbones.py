@@ -22,6 +22,9 @@ class BaseBackbone(nn.Module,metaclass=BackboneMeta):
         output_shape = dummy_output.shape
         return output_shape
 
+    def layer_cam(self):
+        raise NotImplementedError('This method has not been implemented yet!')
+
 class VGGBackbone(BaseBackbone):
     def __init__(self,):
         super().__init__()
@@ -31,6 +34,14 @@ class VGGBackbone(BaseBackbone):
 
     def forward(self,x:torch.Tensor):
         return self.backbone(x)
+
+    def layer_cam(self):
+        return [
+            self.backbone[6],
+            self.backbone[13],
+            self.backbone[26],
+            self.backbone[39]
+        ]
 
     def __str__(self,):
         return 'VGG'
