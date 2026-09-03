@@ -22,6 +22,9 @@ class BaseBackbone(nn.Module,metaclass=BackboneMeta):
         output_shape = dummy_output.shape
         return output_shape
 
+    def layer_cam(self):
+        raise NotImplementedError('This method has not been implemented yet!')
+
 class VGGBackbone(BaseBackbone):
     def __init__(self,):
         super().__init__()
@@ -31,6 +34,14 @@ class VGGBackbone(BaseBackbone):
 
     def forward(self,x:torch.Tensor):
         return self.backbone(x)
+
+    def layer_cam(self):
+        return [
+            self.backbone[5],
+            self.backbone[12],
+            self.backbone[25],
+            self.backbone[38]
+        ]
 
     def __str__(self,):
         return 'VGG'
@@ -45,6 +56,13 @@ class ResNetBackbone(BaseBackbone):
     def forward(self,x:torch.Tensor):
         return self.backbone(x)
 
+    def layer_cam(self):
+        return [
+            self.backbone[4][-1],
+            self.backbone[5][-1],
+            self.backbone[6][-1]
+        ]
+
     def __str__(self,):
         return 'ResNet'
 
@@ -57,6 +75,15 @@ class EffNetBackbone(BaseBackbone):
 
     def forward(self,x:torch.Tensor):
         return self.backbone(x)
+
+    def layer_cam(self):
+        return [
+            self.backbone[1][-1],
+            self.backbone[2][-1],
+            self.backbone[3][-1],
+            self.backbone[4][-1],
+            self.backbone[5][-1]
+        ]
 
     def __str__(self,):
         return 'EfficientNet'
