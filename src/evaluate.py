@@ -65,12 +65,14 @@ def evaluate(model,dataloader):
     }
     return results
 
-def plot_confmat(ys,y_preds,classes=None):
+def plot_confmat(ys,y_preds,classes=None,title=None):
     confmat = confusion_matrix(ys,y_preds)
     classes = classes if classes else [i for i in range(len(np.unique(ys)))]
     sns.heatmap(confmat,annot=True,fmt='d',cmap='viridis',xticklabels=classes,yticklabels=classes)  # type: ignore
     plt.xlabel('Predicted Label')
     plt.ylabel('True Label')
+    if title:
+        plt.title(title,weight='bold')
 
 def plot_sample(data,index=None,classes=None):
     '''
@@ -129,7 +131,7 @@ def plot_sample(data,index=None,classes=None):
     plt.suptitle(f'True: {true_class} | Pred: {pred_class}\nIoU: {iou:.4f} | DSC = {dsc:.2f}',y=0.98,weight='bold',fontsize=14)
     plt.tight_layout()
 
-def plot_history(epochs,history):
+def plot_history(epochs,history,title=None):
     plt.subplot(1,3,1)
     sns.lineplot(x=np.arange(epochs),y=history['train_loss'],marker='o')
     sns.lineplot(x=np.arange(epochs),y=history['val_loss'],marker='o')
@@ -151,8 +153,10 @@ def plot_history(epochs,history):
     plt.title('DSC')
     plt.xlabel('Epochs')
     plt.ylabel('DSC')
-    plt.suptitle('Training History Curve')
-    plt.tight_layout()
+    if title:
+        plt.suptitle(title,weight='bold')
+    else:
+        plt.suptitle('Training History Curve',weight='bold')
 
 def plot_distribution(data:dict,metric:str='dsc'):
     '''
