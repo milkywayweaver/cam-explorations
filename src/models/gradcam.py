@@ -3,12 +3,17 @@ from src.models.modules.base_model import BaseModel
 from src.models.modules.classifiers import MLPClassifier
 
 class GradCAM(BaseModel):
-    def __init__(self,num_classes:int,backbone:torch.nn.Module,classifier:torch.nn.Module,ch_project:str='mapper'):
-        super().__init__(num_classes=num_classes,backbone=backbone,classifier=classifier,ch_project=ch_project)
+    '''
+    CAM generation method based on Selvaraju et al (2017)'.
+    Uses gradients on the feature maps wrt selected class to weight feature maps.
+    '''
+    def __init__(self):
+        super().__init__()
 
     def forward(self,x:torch.Tensor):
+        self._attr_check()
         self.x = x.clone()
-        if self.ch_project == 'mapper':
+        if self.projection == 'mapper':
             x = self.mapper(x)
         else:
             x = x.expand(-1,3,-1,-1)
@@ -40,11 +45,24 @@ class GradCAM(BaseModel):
         return 'GradCAM (Selvaraju et al, 2017)'
 
 class GradCAMPlusPlus(GradCAM):
-    def __init__(self,num_classes:int,backbone:torch.nn.Module,classifier:torch.nn.Module,ch_project:str='mapper'):
-        super().__init__(num_classes=num_classes,backbone=backbone,classifier=classifier,ch_project=ch_project)
-        self.classifier = MLPClassifier(self.num_classes,fmaps_shape=self.backbone.output_shape)
+    '''
+    CAM generation method based on Chattopadhyay et al (2017)'.
+    Improves GradCAM by using higher order derivative to weight each pixel in each feature maps.
+    '''
+    def __init__(self):
+        super().__init__()
+
+    def set_classifier(self, classifier):
+        '''
+        Overrides the provided classifier with MLP classifier as the model assumption require.
+        '''
+        self.num_classes = classifier.num_classes
+        self.fmaps_shape = classifier.fmaps_shape
+        self.classifier = MLPClassifier(self.num_classes,fmaps_shape=self.fmaps_shape)
+        
 
     def get_cam(self,threshold:float=0.7,x=None):
+        self._attr_check()
         self.zero_grad()
         with torch.enable_grad():
             if x is None:
@@ -66,12 +84,19 @@ class GradCAMPlusPlus(GradCAM):
         return 'GradCAM++ (Chattopadhyay et al, 2017)'
 
 class LayerCAM(GradCAM):
-    def __init__(self,num_classes:int,backbone:torch.nn.Module,classifier:torch.nn.Module,ch_project:str='mapper'):
-        super().__init__(num_classes=num_classes,backbone=backbone,classifier=classifier,ch_project=ch_project)
+    '''
+    CAM generation method based on Jiang et al (2021)'.
+    Improves GradCAM by weighing each pixel individually and compute CAMs on different layers.
+    '''
+    def __init__(self):
+        super().__init__()
         self.activations = []
         self.grads = []
-        self.layers = self.backbone.layer_cam()
 
+    def set_backbone(self, backbone):
+        self.backbone = backbone
+        self.layers = self.backbone.layer_cam()
+        
         def activation_hook(module,input,output):
             self.activations.append(output.detach())
             return None
@@ -84,11 +109,12 @@ class LayerCAM(GradCAM):
             layer.register_full_backward_hook(grads_hook)
 
     def forward(self,x:torch.Tensor):
+        self._attr_check()
         self.activations = []
         self.grads = []
 
         self.x = x.clone()
-        if self.ch_project == 'mapper':
+        if self.projection == 'mapper':
             x = self.mapper(x)
         else:
             x = x.expand(-1,3,-1,-1)
@@ -123,3 +149,6 @@ class LayerCAM(GradCAM):
         cams = torch.amax(cams,dim=1,keepdim=True)
         cams = self._process_cam(cams,threshold=threshold)
         return cams
+
+    def __str__(self,): # type: ignore
+        return 'LayerCAM (Jiang et al, 2021)'

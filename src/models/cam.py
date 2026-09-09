@@ -8,13 +8,20 @@ class CAM(BaseModel):
     Uses Global Average Pooling (GAP) layer that connects directly to output layer.
     CAM overrides any classifiers into GAPClassifier.
     '''
-    def __init__(self,num_classes:int,backbone:torch.nn.Module,classifier:torch.nn.Module,ch_project:str='mapper'):
-        super().__init__(num_classes=num_classes,backbone=backbone,classifier=classifier,ch_project=ch_project)
+    def __init__(self):
+        super().__init__()
 
-        self.classifier = GAPClassifier(self.num_classes,fmaps_shape=self.backbone.output_shape)
+    def set_classifier(self, classifier):
+        '''
+        Overrides the provided classifier with GAP classifier as the model require.
+        '''
+        self.num_classes = classifier.num_classes
+        self.fmaps_shape = classifier.fmaps_shape
+        self.classifier = GAPClassifier(self.num_classes,fmaps_shape=self.fmaps_shape)
 
     def forward(self,x:torch.Tensor):
-        if self.ch_project == 'mapper':
+        self._attr_check()
+        if self.projection == 'mapper':
             x = self.mapper(x)
         else:
             x = x.expand(-1,3,-1,-1)
@@ -41,13 +48,20 @@ class ConvCAM(BaseModel):
     Uses convolutional layers that squeeze the channels to the number of classes before taking the channel-wise average as the output logit.
     ConvCAM overrides any classifiers into ConvClassifier.
     '''
-    def __init__(self,num_classes:int,backbone:torch.nn.Module,classifier:torch.nn.Module,ch_project:str='mapper'):
-        super().__init__(num_classes=num_classes,backbone=backbone,classifier=classifier,ch_project=ch_project)
+    def __init__(self):
+        super().__init__()
 
-        self.classifier = ConvClassifier(self.num_classes,fmaps_shape=self.backbone.output_shape)
+    def set_classifier(self, classifier):
+        '''
+        Overrides the provided classifier with convolutional classifier as the model require.
+        '''
+        self.num_classes = classifier.num_classes
+        self.fmaps_shape = classifier.fmaps_shape
+        self.classifier = ConvClassifier(num_classes=self.num_classes,fmaps_shape=self.fmaps_shape)
 
     def forward(self,x:torch.Tensor):
-        if self.ch_project == 'mapper':
+        self._attr_check()
+        if self.projection == 'mapper':
             x = self.mapper(x)
         else:
             x = x.expand(-1,3,-1,-1)
@@ -72,20 +86,26 @@ class ScoreCAM(BaseModel):
     CAM generation method based on Wang et al. (2020).
     Uses CIC to weight feature maps.
     ScoreCAM compresses final feature maps into smaller dimension to save computational resources.
+    Args:
+        compressed_size (int, default=64): The amount of channels to compress the final feature maps into.
     '''
-    def __init__(self,num_classes:int,backbone:torch.nn.Module,classifier:torch.nn.Module,ch_project:str='mapper'):
-        super().__init__(num_classes=num_classes,backbone=backbone,classifier=classifier,ch_project=ch_project)
-        self.compressed_size = 64
+    def __init__(self,compressed_size=64):
+        super().__init__()
+        self.compressed_size = compressed_size
+        
+    def set_classifier(self, classifier):
+        self.num_classes = classifier.num_classes
         self.compressor = torch.nn.Conv2d(
             self.backbone.output_shape[1],self.compressed_size,kernel_size=(1,1),stride=1,padding=0
             )
-        fmaps_shape = list(self.backbone.output_shape)
-        fmaps_shape[1] = self.compressed_size
-        self.classifier = classifier(num_classes=num_classes,fmaps_shape=fmaps_shape)
+        self.fmaps_shape = list(self.backbone.output_shape)
+        self.fmaps_shape[1] = self.compressed_size 
+        self.classifier = type(classifier)(num_classes=self.num_classes,fmaps_shape=self.fmaps_shape)
         
     def forward(self,x:torch.Tensor):
+        self._attr_check()
         self.x = x.clone()
-        if self.ch_project == 'mapper':
+        if self.projection == 'mapper':
             x = self.mapper(x)
         else:
             x = x.expand(-1,3,-1,-1)
@@ -121,11 +141,16 @@ class ScoreCAM(BaseModel):
         return 'ScoreCAM (Wang et al, 2020)'
 
 class FIMFScoreCAM(BaseModel):
-    def __init__(self,num_classes:int,backbone:torch.nn.Module,classifier:torch.nn.Module,ch_project:str='mapper'):
-        super().__init__(num_classes=num_classes,backbone=backbone,classifier=classifier,ch_project=ch_project)
+    '''
+    CAM generation method based on Li et al. (2022).
+    Based on ScoreCAM (Wang et al, 2020) with improvements on the performance side.
+    '''
+    def __init__(self):
+        super().__init__()
 
     def forward(self,x:torch.Tensor):
-        if self.ch_project == 'mapper':
+        self._attr_check()
+        if self.projection == 'mapper':
             x = self.mapper(x)
         else:
             x = x.expand(-1,3,-1,-1)

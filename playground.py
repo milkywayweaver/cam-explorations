@@ -6,11 +6,19 @@ import torch
 
 
 if __name__ == '__main__':
-    print(VGGBackbone().backbone)
-    # cam = LayerCAM(4,backbone=EffNetBackbone,classifier=MLPClassifier,ch_project='mapper')
-    # X = torch.rand((8,1,224,224))
-    # logits = cam(X)
-    # masks = cam.get_cam()
+    cam = GradCAMPlusPlus()
+    cam.set_backbone(VGGBackbone())
+    cam.set_classifier(GAPClassifier(4,cam.backbone.output_shape))
+    cam.set_projection('mapper')
 
-    # print(f'Logits: {logits.shape}')
-    # print(f'Masks: {masks.shape}')
+    print(cam)
+    print(cam.backbone)
+    print(cam.classifier)
+    print(cam.projection)
+
+    X = torch.rand((8,1,224,224))
+    logits = cam(X)
+    masks = cam.get_cam()
+
+    print(f'Logits: {logits.shape}')
+    print(f'Masks: {masks.shape}')
