@@ -32,10 +32,7 @@ for key,value in CONFIG.items():
     print(f'{key}: {str(value)}')
 print(f'device: {device}')
 
-
-
-
-mlflow.set_experiment('CAM (Zhang et al, 2018)')
+mlflow.set_experiment(CONFIG['experiment'])
 
 # READ DATA ================================================================================================================
 loader = LoadBRISC()
@@ -63,7 +60,7 @@ test_dl = DataLoader(test_ds,
 classes = loader.classes
 
 # MODEL TRAINING
-MODEL = CONFIG['cam_method'](len(classes),backbone=CONFIG['backbone'],classifier=CONFIG['classifier'],ch_project=CONFIG['ch_project'])
+MODEL = CONFIG['model']
 LR = 1e-3
 WD = 1e-4
 CRITERION = nn.CrossEntropyLoss()
@@ -103,17 +100,20 @@ for i in range(9):
     plt.savefig(f'figs/sample_{i+1}.png')
     samples.append(sample)
 
-plt.figure(figsize=(10,3))
+dist_fig = plt.figure(figsize=(10,3))
 plt.subplot(1,2,1)
 plot_distribution(data,'iou')
 plt.subplot(1,2,2)
 plot_distribution(data,'dsc')
+plt.savefig('figs/distribution.png')
 
 # LOGGING
 with mlflow.start_run(run_name=CONFIG['run_name']):
     mlflow.log_params({
         'seed':CONFIG['seed'],
+        'model':CONFIG['model'],
         'backbone':CONFIG['backbone'],
+        'classifier':CONFIG['classifier'],
         'augment':CONFIG['augment'],
         'batchsize':CONFIG['batch_size'],
         'ch_project':CONFIG['ch_project'],
@@ -130,8 +130,10 @@ with mlflow.start_run(run_name=CONFIG['run_name']):
     })
     mlflow.log_figure(hist_fig,'training_history.png')
     mlflow.log_figure(confmat_fig,'confmat.png')
+    mlflow.log_figure(dist_fig,'distribution.png')
 
 plt.close(hist_fig)
 plt.close(confmat_fig)
+plt.close(dist_fig)
 
 
