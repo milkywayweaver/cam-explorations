@@ -24,6 +24,7 @@ torch.random.manual_seed(CONFIG['seed'])
 torch.cuda.manual_seed(CONFIG['seed'])
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
+torch.use_deterministic_algorithms(True)
 generator = torch.Generator().manual_seed(CONFIG['seed'])
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -105,6 +106,7 @@ plt.subplot(1,2,1)
 plot_distribution(data,'iou')
 plt.subplot(1,2,2)
 plot_distribution(data,'dsc')
+plt.tight_layout()
 plt.savefig('figs/distribution.png')
 
 # LOGGING
@@ -132,7 +134,7 @@ with mlflow.start_run(run_name=CONFIG['run_name']):
     mlflow.log_figure(confmat_fig,'confmat.png')
     mlflow.log_figure(dist_fig,'distribution.png')
     for i,sample in enumerate(samples):
-        mlflow.log_figure(sample,f'sample_{i}')
+        mlflow.log_figure(sample,f'sample_{i}.png')
         plt.close(sample)
 
 plt.close(hist_fig)
