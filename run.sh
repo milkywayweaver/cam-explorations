@@ -19,4 +19,4 @@ fi
 unset __conda_setup
 # <<< conda initialize <<<
 conda activate torch
-python3 script.py > run_result.out
+python3 script.py > "run_result_$(date +%Y-%m-%d_%H-%M-%S).out"

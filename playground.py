@@ -6,10 +6,10 @@ import torch
 
 
 if __name__ == '__main__':
-    cam = GradCAMPlusPlus()
+    cam = GradCAM()
     cam.set_backbone(VGGBackbone())
-    cam.set_classifier(GAPClassifier(4,cam.backbone.output_shape))
-    cam.set_projection('mapper')
+    cam.set_classifier(MLPClassifier(4,cam.backbone.output_shape))
+    cam.set_projection('duplicate')
 
     print(cam)
     print(cam.backbone)

@@ -131,6 +131,9 @@ with mlflow.start_run(run_name=CONFIG['run_name']):
     mlflow.log_figure(hist_fig,'training_history.png')
     mlflow.log_figure(confmat_fig,'confmat.png')
     mlflow.log_figure(dist_fig,'distribution.png')
+    for i,sample in enumerate(samples):
+        mlflow.log_figure(sample,f'sample_{i}')
+        plt.close(sample)
 
 plt.close(hist_fig)
 plt.close(confmat_fig)
