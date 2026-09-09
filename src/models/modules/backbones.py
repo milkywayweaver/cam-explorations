@@ -36,12 +36,15 @@ class VGGBackbone(BaseBackbone):
         return self.backbone(x)
 
     def layer_cam(self):
-        return [
+        layers = [
             self.backbone[5],
             self.backbone[12],
             self.backbone[25],
             self.backbone[38]
         ]
+        for layer in layers:
+            layer.inplace = False
+        return layers
 
     def __str__(self,):
         return 'VGG'
