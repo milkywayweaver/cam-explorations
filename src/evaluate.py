@@ -9,7 +9,11 @@ import matplotlib.pyplot as plt
 from matplotlib import patches
 import seaborn as sns
 
-from src.config import CONFIG
+import yaml
+
+with open('./config.yaml') as f:
+    CONFIG = yaml.safe_load(f)
+    
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def make_preds(model,dataloader) -> dict:
@@ -45,10 +49,11 @@ def make_preds(model,dataloader) -> dict:
         data['mask'] = torch.cat(data['mask'],dim=0).cpu().to(torch.long)  # type: ignore
     return data 
 
-def evaluate(model,dataloader):
+def evaluate(model,dataloader,negative_class=None):
     data = make_preds(model,dataloader)
     # Accuracy
     acc = accuracy_score(data['y'],data['y_pred'])
+        
     # Dice Similarity Coef.
     dsc = dice_score(data['mask'],data['M'],num_classes=2,include_background=False,average='macro',input_format='index').median()
     # IoU

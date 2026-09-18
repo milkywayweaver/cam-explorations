@@ -77,7 +77,7 @@ MODEL.set_classifier(classifier_cls(len(classes),MODEL.backbone.output_shape,**C
 MODEL.set_projection('duplicate')
 
 CRITERION = nn.CrossEntropyLoss()
-OPTIMIZER = torch.optim.AdamW(MODEL.parameters(),lr=CONFIG['lr'],weight_decay=CONFIG['wd'])
+OPTIMIZER = torch.optim.AdamW(MODEL.parameters(),lr=float(CONFIG['lr']),weight_decay=float(CONFIG['wd']))
 SCHEDULER = torch.optim.lr_scheduler.ReduceLROnPlateau(OPTIMIZER, mode='min', factor=0.1, patience=10)
 
 # MODEL TRAINING
@@ -136,8 +136,8 @@ with mlflow.start_run(run_name=CONFIG['run_name']):
         'augment':CONFIG['augment'],
         'batchsize':CONFIG['batch_size'],
         'epochs':CONFIG['epochs'],
-        'lr':CONFIG['lr'],
-        'wd':CONFIG['wd'],
+        'lr':float(CONFIG['lr']),
+        'wd':float(CONFIG['wd']),
         'threshold':CONFIG['threshold'],
     })
     mlflow.log_metrics({

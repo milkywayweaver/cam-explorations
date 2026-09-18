@@ -3,9 +3,11 @@ from tqdm.auto import tqdm
 from torchmetrics.functional.segmentation import dice_score
 from sklearn.metrics import accuracy_score
 import time
-
-from src.config import CONFIG
 from src.trainloop.base_trainer import BaseTrainer
+import yaml
+
+with open('./config.yaml') as f:
+    CONFIG = yaml.safe_load(f)
 
 class ForwardTrainer(BaseTrainer):
     '''
