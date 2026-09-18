@@ -8,3 +8,5 @@ mlflow.db
 run_result.out
 *.out
 __pycache__/
+*.txt
+*.csv

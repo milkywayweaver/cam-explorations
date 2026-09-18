@@ -1,5 +1,8 @@
 from torchvision.transforms import v2
-from src.config import CONFIG
+import yaml
+
+with open('./config.yaml') as f:
+    CONFIG = yaml.safe_load(f)
     
 train_list = [
     v2.ToPILImage(),
