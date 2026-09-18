@@ -1,0 +1,35 @@
+experiment_name: default
+run_name: time
+seed: 42
+
+data_contents: 'all'
+
+model: {
+  class: GradCAM,
+  kwargs: {}
+}
+backbone: {
+  class: VGG,
+  kwargs: {}
+}
+classifier: {
+  class: MLP,
+  kwargs: {
+    layers: [128, 128, 128]
+  }
+}
+projection: duplicate
+augment:
+  - geometric
+  - color
+  - blur
+  - erasing
+
+batch_size: 32
+epochs: 50
+lr: 1e-3
+wd: 1e-4
+threshold: 0.7
+
+
+

@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import os
-import time
+from datetime import datetime
 
 import torch
 from torch import nn
@@ -12,9 +12,14 @@ from src.augment import train_transform,test_transform
 from src.briscloader import LoadBRISC
 from src.trainloop.forward_trainer import ForwardTrainer
 from src.evaluate import evaluate,plot_confmat,plot_history,plot_sample,plot_distribution
+from src.models.initializer import get_model_class
 
 import mlflow
-from src.config import CONFIG
+import yaml
+
+# IMPORT CONFIG =============================================================================================================
+with open('./config.yaml') as f:
+    CONFIG = yaml.safe_load(f)
 
 # SETUP ENVIRONMENT =========================================================================================================
 os.makedirs('saves',exist_ok=True)
@@ -33,13 +38,11 @@ for key,value in CONFIG.items():
     print(f'{key}: {str(value)}')
 print(f'device: {device}')
 
-mlflow.set_experiment(CONFIG['experiment'])
-
 # READ DATA ================================================================================================================
 loader = LoadBRISC()
 ### !!! IMPORTANT !!!
 ### Tumor only selection has not been implemented in the evaluation module
-train_ds,val_ds,test_ds = loader.load(classes='tumor', # type: ignore
+train_ds,val_ds,test_ds = loader.load(classes=CONFIG['data_contents'],
                                       planes='all',
                                       encoding_type='onehot',
                                       split_val=True,
@@ -60,14 +63,24 @@ test_dl = DataLoader(test_ds,
                      drop_last=False)
 classes = loader.classes
 
-# MODEL TRAINING
-MODEL = CONFIG['model']
-LR = 1e-3
-WD = 1e-4
+# INITIALIZE MODEL
+model_cls, backbone_cls, classifier_cls = get_model_class(
+    CONFIG['model']['class'],
+    CONFIG['backbone']['class'],
+    CONFIG['classifier']['class'],
+    CONFIG['projection']
+)
+
+MODEL = model_cls(**CONFIG['model']['kwargs'])
+MODEL.set_backbone(backbone_cls(**CONFIG['backbone']['kwargs']))
+MODEL.set_classifier(classifier_cls(len(classes),MODEL.backbone.output_shape,**CONFIG['classifier']['kwargs']))
+MODEL.set_projection('duplicate')
+
 CRITERION = nn.CrossEntropyLoss()
-OPTIMIZER = torch.optim.AdamW(MODEL.parameters(),lr=LR,weight_decay=WD)
+OPTIMIZER = torch.optim.AdamW(MODEL.parameters(),lr=CONFIG['lr'],weight_decay=CONFIG['wd'])
 SCHEDULER = torch.optim.lr_scheduler.ReduceLROnPlateau(OPTIMIZER, mode='min', factor=0.1, patience=10)
 
+# MODEL TRAINING
 loop = ForwardTrainer(MODEL,CRITERION,OPTIMIZER,device,SCHEDULER)
 history = loop.fit(train_dl,val_dl,CONFIG['epochs'])
 torch.save(MODEL.state_dict(),f'saves/CAM_{CONFIG['run_name']}.pth')
@@ -110,19 +123,22 @@ plt.tight_layout()
 plt.savefig('figs/distribution.png')
 
 # LOGGING
+CONFIG['experiment_name'] = str(MODEL) if CONFIG['experiment_name'] == 'default' else CONFIG['experiment_name']
+CONFIG['run_name'] = datetime.now() if CONFIG['run_name'] == 'now' else CONFIG['run_name']
+mlflow.set_experiment(CONFIG['experiment_name'])
 with mlflow.start_run(run_name=CONFIG['run_name']):
     mlflow.log_params({
         'seed':CONFIG['seed'],
         'model':CONFIG['model'],
         'backbone':CONFIG['backbone'],
         'classifier':CONFIG['classifier'],
+        'projection':CONFIG['projection'],
         'augment':CONFIG['augment'],
         'batchsize':CONFIG['batch_size'],
-        'ch_project':CONFIG['ch_project'],
-        'threshold':CONFIG['threshold'],
         'epochs':CONFIG['epochs'],
-        'lr':LR,
-        'wd':WD
+        'lr':CONFIG['lr'],
+        'wd':CONFIG['wd'],
+        'threshold':CONFIG['threshold'],
     })
     mlflow.log_metrics({
         'accuracy':acc,
