@@ -40,8 +40,6 @@ print(f'device: {device}')
 
 # READ DATA ================================================================================================================
 loader = LoadBRISC()
-### !!! IMPORTANT !!!
-### Tumor only selection has not been implemented in the evaluation module
 train_ds,val_ds,test_ds = loader.load(classes=CONFIG['data_contents'],
                                       planes='all',
                                       encoding_type='onehot',
@@ -80,6 +78,9 @@ CRITERION = nn.CrossEntropyLoss()
 OPTIMIZER = torch.optim.AdamW(MODEL.parameters(),lr=float(CONFIG['lr']),weight_decay=float(CONFIG['wd']))
 SCHEDULER = torch.optim.lr_scheduler.ReduceLROnPlateau(OPTIMIZER, mode='min', factor=0.1, patience=10)
 
+CONFIG['experiment_name'] = str(MODEL) if CONFIG['experiment_name'] == 'default' else CONFIG['experiment_name']
+CONFIG['run_name'] = datetime.now() if CONFIG['run_name'] == 'default' else CONFIG['run_name']
+
 # MODEL TRAINING
 loop = ForwardTrainer(MODEL,CRITERION,OPTIMIZER,device,SCHEDULER)
 history = loop.fit(train_dl,val_dl,CONFIG['epochs'])
@@ -87,7 +88,7 @@ torch.save(MODEL.state_dict(),f'saves/CAM_{CONFIG['run_name']}.pth')
 print(f'Training completed in {loop.fit_time:.4f} seconds.')
 
 # MODEL EVALUATION
-results = evaluate(MODEL,test_dl)
+results = evaluate(MODEL,test_dl,negative_class=2)
 (acc,dsc,iou) = results['metrics']
 data = results['data']
 fit_time = loop.fit_time
@@ -123,15 +124,17 @@ plt.tight_layout()
 plt.savefig('figs/distribution.png')
 
 # LOGGING
-CONFIG['experiment_name'] = str(MODEL) if CONFIG['experiment_name'] == 'default' else CONFIG['experiment_name']
-CONFIG['run_name'] = datetime.now() if CONFIG['run_name'] == 'now' else CONFIG['run_name']
 mlflow.set_experiment(CONFIG['experiment_name'])
 with mlflow.start_run(run_name=CONFIG['run_name']):
     mlflow.log_params({
         'seed':CONFIG['seed'],
-        'model':CONFIG['model'],
-        'backbone':CONFIG['backbone'],
-        'classifier':CONFIG['classifier'],
+        'data_contents':CONFIG['data_contents'],
+        'model':CONFIG['model']['class'],
+        'model_kwargs':CONFIG['model']['kwargs'],
+        'backbone':CONFIG['backbone']['class'],
+        'backbone_kwargs':CONFIG['backbone']['kwargs'],
+        'classifier':CONFIG['classifier']['class'],
+        'classifier_kwargs':CONFIG['classifier']['kwargs'],
         'projection':CONFIG['projection'],
         'augment':CONFIG['augment'],
         'batchsize':CONFIG['batch_size'],

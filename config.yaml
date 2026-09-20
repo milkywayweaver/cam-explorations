@@ -1,11 +1,11 @@
-experiment_name: default
-run_name: time
+experiment_name: exp
+run_name: default
 seed: 42
 
 data_contents: 'all'
 
 model: {
-  class: GradCAM,
+  class: GradCAM++,
   kwargs: {}
 }
 backbone: {
@@ -15,7 +15,7 @@ backbone: {
 classifier: {
   class: MLP,
   kwargs: {
-    layers: [128, 128, 128]
+    layers: [128, 128]
   }
 }
 projection: duplicate

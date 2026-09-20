@@ -50,19 +50,39 @@ def make_preds(model,dataloader) -> dict:
     return data 
 
 def evaluate(model,dataloader,negative_class=None):
+    '''
+    Evaluates the a DataLoader.
+    Args:
+        model (nn.Module): The model to make predictions.
+        dataloader (torch.utils.data.DataLoader): DataLoader which the dataset is loaded in.
+        negative_class (int, default=None): Negative class which contains no object of interest.
+    Returns:
+        Dictionary containing evaluation metrics and the data. 
+    '''
     data = make_preds(model,dataloader)
     # Accuracy
     acc = accuracy_score(data['y'],data['y_pred'])
+
+    negative_index = data['y'] != negative_class if negative_class is not None else torch.ones_like(data['y'],dtype=torch.bool)
+    correct_index = data['y'] == data['y_pred']
+    filter_index = negative_index & correct_index
+
+    data_fitlered = data.copy()
+    for key,value in data_fitlered.items():
+        data_fitlered[key] = value[filter_index]
         
     # Dice Similarity Coef.
-    dsc = dice_score(data['mask'],data['M'],num_classes=2,include_background=False,average='macro',input_format='index').median()
+    dsc = dice_score(data_fitlered['mask'],data_fitlered['M'],num_classes=2,include_background=False,average='macro',input_format='index').median()
     # IoU
-    M_bbox = masks_to_boxes(data['M'])
-    mask_bbox = masks_to_boxes(data['mask'])
+    M_bbox = masks_to_boxes(data_fitlered['M'])
+    mask_bbox = masks_to_boxes(data_fitlered['mask'])
     iou = intersection_over_union(mask_bbox,M_bbox,aggregate=True)
 
-    data['M_bbox'] = M_bbox
-    data['mask_bbox'] = mask_bbox
+    data['M_bbox'] = torch.tensor([[0,0,224,224] for i in range(data['y'].shape[0])],dtype=torch.float)
+    data['mask_bbox'] = torch.tensor([[0,0,224,224] for i in range(data['y'].shape[0])],dtype=torch.float)
+    
+    data['M_bbox'][filter_index] = M_bbox
+    data['mask_bbox'][filter_index] = mask_bbox
 
     results = {
         'metrics':(acc,dsc,iou),
