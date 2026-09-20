@@ -1,11 +1,12 @@
-experiment_name: exp
+experiment_name: batch_exp
 run_name: default
 seed: 42
+verbose: true
 
-data_contents: 'all'
+data_contents: 'tumor'
 
 model: {
-  class: GradCAM++,
+  class: GradCAM,
   kwargs: {}
 }
 backbone: {
@@ -22,11 +23,11 @@ projection: duplicate
 augment:
   - geometric
   - color
-  - blur
-  - erasing
+  # - blur
+  # - erasing
 
 batch_size: 32
-epochs: 50
+epochs: 25
 lr: 1e-3
 wd: 1e-4
 threshold: 0.7

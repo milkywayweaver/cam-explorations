@@ -17,12 +17,37 @@ from src.models.initializer import get_model_class
 import mlflow
 import yaml
 
+import argparse
+
 # IMPORT CONFIG =============================================================================================================
 with open('./config.yaml') as f:
     CONFIG = yaml.safe_load(f)
 
 # SETUP ENVIRONMENT =========================================================================================================
 os.makedirs('saves',exist_ok=True)
+
+# PARSE ARGS FROM CLI
+parser = argparse.ArgumentParser()
+parser.add_argument('--backbone',default=None,type=str,choices=['VGG','ResNet','EffNet'],nargs=1)
+parser.add_argument('--classifier',default=None,type=str,choices=['MLP','GAP','Conv'],nargs=1)
+parser.add_argument('--projection',default=None,type=str,choices=['duplicate','mapper'],nargs=1)
+parser.add_argument('--augment',default=None,type=str,choices=['geometric','color','blur','erasing'],nargs='+')
+parser.add_argument('--data',default=None,type=str,choices=['all','tumor'],nargs=1)
+parser.add_argument('--verbose',default=None,type=str,choices=['true','false'],nargs=1)
+args = parser.parse_args()
+
+if args.backbone:
+    CONFIG['backbone']['class'] = args.backbone[0]
+if args.classifier:
+    CONFIG['classifier']['class'] = args.classifier[0]
+if args.projection:
+    CONFIG['projection'] = args.projection[0]
+if args.augment:
+    CONFIG['augment'] = args.augment
+if args.data:
+    CONFIG['data_contents'] = args.data[0]
+if args.verbose is not None:
+    CONFIG['verbose'] = True if args.verbose[0] == 'true' else False
 
 np.random.seed(CONFIG['seed'])
 torch.random.manual_seed(CONFIG['seed'])
@@ -40,13 +65,14 @@ print(f'device: {device}')
 
 # READ DATA ================================================================================================================
 loader = LoadBRISC()
-train_ds,val_ds,test_ds = loader.load(classes=CONFIG['data_contents'],
+train_ds,val_ds,test_ds = loader.load(classes=CONFIG['data_contents'], # type: ignore
                                       planes='all',
                                       encoding_type='onehot',
                                       split_val=True,
                                       train_transform=train_transform,
                                       test_transform=test_transform,
-                                      generator=generator)
+                                      generator=generator,
+                                      verbose=CONFIG['verbose'])
 train_dl = DataLoader(train_ds,
                       batch_size=CONFIG['batch_size'],
                       shuffle=True,
@@ -83,7 +109,7 @@ CONFIG['run_name'] = datetime.now() if CONFIG['run_name'] == 'default' else CONF
 
 # MODEL TRAINING
 loop = ForwardTrainer(MODEL,CRITERION,OPTIMIZER,device,SCHEDULER)
-history = loop.fit(train_dl,val_dl,CONFIG['epochs'])
+history = loop.fit(train_dl,val_dl,CONFIG['epochs'],verbose=CONFIG['verbose'])
 torch.save(MODEL.state_dict(),f'saves/CAM_{CONFIG['run_name']}.pth')
 print(f'Training completed in {loop.fit_time:.4f} seconds.')
 
@@ -159,5 +185,3 @@ with mlflow.start_run(run_name=CONFIG['run_name']):
 plt.close(hist_fig)
 plt.close(confmat_fig)
 plt.close(dist_fig)
-
-
