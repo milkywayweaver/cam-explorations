@@ -63,7 +63,7 @@ class ForwardTrainer(BaseTrainer):
             dscs /= len(dataloader)
         return (losses,accs,dscs) # type: ignore
 
-    def fit(self,train_loader:torch.utils.data.DataLoader,val_loader:torch.utils.data.DataLoader,epochs:int=20) -> dict:
+    def fit(self,train_loader:torch.utils.data.DataLoader,val_loader:torch.utils.data.DataLoader,epochs:int=20,verbose=True) -> dict:
         '''
         Fits the model to train data.
         Args:
@@ -81,7 +81,7 @@ class ForwardTrainer(BaseTrainer):
                    'val_dsc':[]}
         
         t0 = time.time()
-        for epoch in tqdm(range(epochs)):
+        for epoch in tqdm(range(epochs),disable=(not verbose)):
             print(f'Epoch {epoch}:')
             train_loss,train_acc,train_dsc = self._train_step(train_loader)
             val_loss,val_acc,val_dsc = self._val_step(val_loader)

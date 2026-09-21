@@ -4,7 +4,7 @@ from torch.utils.data import Dataset,random_split
 from PIL import Image
 from torchvision.transforms.v2.functional import to_image
 from torchvision.transforms import v2
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import OrdinalEncoder
 import os
 import glob
 from tqdm.auto import tqdm
@@ -14,7 +14,7 @@ class LoadBRISC():
         self.cls_root = './brisc2025/classification_task'
         self.seg_root = './brisc2025/segmentation_task'
     
-    def load(self,classes:str='all',planes:str='all',label_type:str='class',encoding_type='integer',split_val=True,train_transform=None,test_transform=None,generator=None):
+    def load(self,classes:str='all',planes:str='all',label_type:str='class',encoding_type='integer',split_val=True,train_transform=None,test_transform=None,generator=None,verbose=True):
         '''
         Loads BRISC 2025 dataset into a PyTorch Dataset.
 
@@ -72,6 +72,7 @@ class LoadBRISC():
             'co':['co']
         }
         self.classes = self.classes_dict[classes]
+        self.negative_class = 0 if classes == 'all' else None
         self.planes = self.planes_dict[planes]
         self.encoding_type = encoding_type
         self.split_val = split_val
@@ -108,8 +109,8 @@ class LoadBRISC():
                 test_labels.extend([labels for i in range(len(test_img_path))])
 
         # Get images and masks
-        train_imgs,train_masks = self.__import_image(train_ids,'train')
-        test_imgs,test_masks = self.__import_image(test_ids,'test')
+        train_imgs,train_masks = self.__import_image(train_ids,'train',verbose=verbose)
+        test_imgs,test_masks = self.__import_image(test_ids,'test',verbose=verbose)
         train_labels = np.array(train_labels)
         test_labels = np.array(test_labels)
 
@@ -134,14 +135,14 @@ class LoadBRISC():
         Returns:
             Array of encoded labels
         '''
-        encoder = LabelEncoder()
-        labels_enc = encoder.fit_transform(labels)
-        self.classes = [self.classes_abr[cls] for cls in list(encoder.classes_)]
+        encoder = OrdinalEncoder(categories=[['no','gl','me','pi']])
+        labels_enc = encoder.fit_transform(labels.reshape(-1,1)).squeeze().astype(int)
+        self.classes = [self.classes_abr[cls] for cls in list(encoder.categories_[0])]
         if self.encoding_type == 'onehot':
             labels_enc = np.eye(len(self.classes),dtype=int)[labels_enc]
         return labels_enc
 
-    def __import_image(self,ids,mode):
+    def __import_image(self,ids,mode,verbose):
         '''
         Imports images and masks from given list of paths
         Args:
@@ -151,7 +152,7 @@ class LoadBRISC():
             PyTorch tensor of the images and masks in one batch
         '''
         imgs,masks = [],[]
-        for id in tqdm(ids):
+        for id in tqdm(ids,disable=(not verbose)):
             cls = self.classes_abr[id.split('_')[1]]
             # img_path = glob.glob(os.path.join(self.cls_root,f'{mode}/{cls}/*{id}*'))[0]
             img_path = os.path.join(self.cls_root,f'{mode}/{cls}/brisc2025_{mode}_{id}.jpg')
