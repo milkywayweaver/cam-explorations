@@ -4,7 +4,7 @@ from torch.utils.data import Dataset,random_split
 from PIL import Image
 from torchvision.transforms.v2.functional import to_image
 from torchvision.transforms import v2
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import OrdinalEncoder
 import os
 import glob
 from tqdm.auto import tqdm
@@ -72,6 +72,7 @@ class LoadBRISC():
             'co':['co']
         }
         self.classes = self.classes_dict[classes]
+        self.negative_class = 0 if classes == 'all' else None
         self.planes = self.planes_dict[planes]
         self.encoding_type = encoding_type
         self.split_val = split_val
@@ -134,9 +135,9 @@ class LoadBRISC():
         Returns:
             Array of encoded labels
         '''
-        encoder = LabelEncoder()
-        labels_enc = encoder.fit_transform(labels)
-        self.classes = [self.classes_abr[cls] for cls in list(encoder.classes_)]
+        encoder = OrdinalEncoder(categories=[['no','gl','me','pi']])
+        labels_enc = encoder.fit_transform(labels.reshape(-1,1)).squeeze().astype(int)
+        self.classes = [self.classes_abr[cls] for cls in list(encoder.categories_[0])]
         if self.encoding_type == 'onehot':
             labels_enc = np.eye(len(self.classes),dtype=int)[labels_enc]
         return labels_enc

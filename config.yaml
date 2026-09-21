@@ -1,9 +1,9 @@
-experiment_name: batch_exp
+experiment_name: GradCAM Batch
 run_name: default
 seed: 42
 verbose: true
 
-data_contents: 'tumor'
+data_contents: 'all'
 
 model: {
   class: GradCAM,
@@ -15,9 +15,7 @@ backbone: {
 }
 classifier: {
   class: MLP,
-  kwargs: {
-    layers: [128, 128]
-  }
+  kwargs: {}
 }
 projection: duplicate
 augment:
@@ -31,6 +29,3 @@ epochs: 25
 lr: 1e-3
 wd: 1e-4
 threshold: 0.7
-
-
-

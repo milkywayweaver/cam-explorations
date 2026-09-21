@@ -86,6 +86,8 @@ test_dl = DataLoader(test_ds,
                      shuffle=False,
                      drop_last=False)
 classes = loader.classes
+print('Classes: ',classes)
+print('Negative class: ', loader.negative_class)
 
 # INITIALIZE MODEL
 model_cls, backbone_cls, classifier_cls = get_model_class(
@@ -98,7 +100,7 @@ model_cls, backbone_cls, classifier_cls = get_model_class(
 MODEL = model_cls(**CONFIG['model']['kwargs'])
 MODEL.set_backbone(backbone_cls(**CONFIG['backbone']['kwargs']))
 MODEL.set_classifier(classifier_cls(len(classes),MODEL.backbone.output_shape,**CONFIG['classifier']['kwargs']))
-MODEL.set_projection('duplicate')
+MODEL.set_projection(CONFIG['projection'])
 
 CRITERION = nn.CrossEntropyLoss()
 OPTIMIZER = torch.optim.AdamW(MODEL.parameters(),lr=float(CONFIG['lr']),weight_decay=float(CONFIG['wd']))
@@ -114,7 +116,7 @@ torch.save(MODEL.state_dict(),f'saves/CAM_{CONFIG['run_name']}.pth')
 print(f'Training completed in {loop.fit_time:.4f} seconds.')
 
 # MODEL EVALUATION
-results = evaluate(MODEL,test_dl,negative_class=2)
+results = evaluate(MODEL,test_dl,negative_class=loader.negative_class)
 (acc,dsc,iou) = results['metrics']
 data = results['data']
 fit_time = loop.fit_time
@@ -143,9 +145,9 @@ for i in range(9):
 
 dist_fig = plt.figure(figsize=(10,3))
 plt.subplot(1,2,1)
-plot_distribution(data,'iou')
+plot_distribution(data,'iou',negative_class=loader.negative_class)
 plt.subplot(1,2,2)
-plot_distribution(data,'dsc')
+plot_distribution(data,'dsc',negative_class=loader.negative_class)
 plt.tight_layout()
 plt.savefig('figs/distribution.png')
 

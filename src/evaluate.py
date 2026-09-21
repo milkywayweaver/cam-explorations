@@ -49,6 +49,17 @@ def make_preds(model,dataloader) -> dict:
         data['mask'] = torch.cat(data['mask'],dim=0).cpu().to(torch.long)  # type: ignore
     return data 
 
+def _filter_data(data,negative_class):
+    negative_index = data['y'] != negative_class if negative_class is not None else torch.ones_like(data['y'],dtype=torch.bool)
+    correct_index = data['y'] == data['y_pred']
+    filter_index = negative_index & correct_index
+
+    data_filtered = data.copy()
+    for key,value in data_filtered.items():
+        data_filtered[key] = value[filter_index]
+
+    return data_filtered,filter_index
+
 def evaluate(model,dataloader,negative_class=None):
     '''
     Evaluates the a DataLoader.
@@ -63,19 +74,13 @@ def evaluate(model,dataloader,negative_class=None):
     # Accuracy
     acc = accuracy_score(data['y'],data['y_pred'])
 
-    negative_index = data['y'] != negative_class if negative_class is not None else torch.ones_like(data['y'],dtype=torch.bool)
-    correct_index = data['y'] == data['y_pred']
-    filter_index = negative_index & correct_index
-
-    data_fitlered = data.copy()
-    for key,value in data_fitlered.items():
-        data_fitlered[key] = value[filter_index]
+    data_filtered,filter_index = _filter_data(data,negative_class=negative_class)
         
     # Dice Similarity Coef.
-    dsc = dice_score(data_fitlered['mask'],data_fitlered['M'],num_classes=2,include_background=False,average='macro',input_format='index').median()
+    dsc = dice_score(data_filtered['mask'],data_filtered['M'],num_classes=2,include_background=False,average='macro',input_format='index').median()
     # IoU
-    M_bbox = masks_to_boxes(data_fitlered['M'])
-    mask_bbox = masks_to_boxes(data_fitlered['mask'])
+    M_bbox = masks_to_boxes(data_filtered['M'])
+    mask_bbox = masks_to_boxes(data_filtered['mask'])
     iou = intersection_over_union(mask_bbox,M_bbox,aggregate=True)
 
     data['M_bbox'] = torch.tensor([[0,0,224,224] for i in range(data['y'].shape[0])],dtype=torch.float)
@@ -183,20 +188,22 @@ def plot_history(epochs,history,title=None):
     else:
         plt.suptitle('Training History Curve',weight='bold')
 
-def plot_distribution(data:dict,metric:str='dsc'):
+def plot_distribution(data:dict,metric:str='dsc',negative_class=None):
     '''
     Plots the distribution of selected metric.
     Args:
         data (dict): Data dictionary obtained from evaluate() function.
         metric (str, default="dsc"): Selected metric.
             Availabel metrics are: "dsc" and "iou".
+        negative_class (int, default=None): Class where no object of interest is present. This class will be excluded from IoU/DSC calculation.
     Returns:
         None
     '''
+    data_filtered,filter_index = _filter_data(data,negative_class=negative_class)
     if metric.lower() == 'dsc':
-        items = dice_score(data['mask'],data['M'],num_classes=2,include_background=False,average='macro',input_format='index')
+        items = dice_score(data_filtered['mask'],data_filtered['M'],num_classes=2,include_background=False,average='macro',input_format='index')
     elif metric.lower() == 'iou':
-        items = intersection_over_union(data['mask_bbox'],data['M_bbox'],aggregate=False).diagonal()
+        items = intersection_over_union(data_filtered['mask_bbox'],data_filtered['M_bbox'],aggregate=False).diagonal()
     else:
         raise NotImplementedError(f'Metric {metric} not yet implemented!')
 
