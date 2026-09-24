@@ -56,13 +56,9 @@ class GradCAMPlusPlus(GradCAM):
         '''
         Overrides the provided classifier with MLP classifier as the model assumption require.
         '''
-        self.num_classes = classifier.num_classes
-        self.fmaps_shape = classifier.fmaps_shape
-        self.classifier = MLPClassifier(self.num_classes,fmaps_shape=self.fmaps_shape)
+        self.classifier = MLPClassifier(classifier.num_classes,fmaps_shape=classifier.fmaps_shape)
         
-
     def get_cam(self,threshold:float=0.7,x=None):
-        self._attr_check()
         self.zero_grad()
         with torch.enable_grad():
             if x is None:
@@ -71,7 +67,7 @@ class GradCAMPlusPlus(GradCAM):
             y_preds = logits.argmax(1)
             scores = logits[torch.arange(logits.shape[0]),y_preds]
 
-            self.grads = torch.autograd.grad(scores,self._fmaps,grad_outputs=torch.ones_like(scores),create_graph=True)[0]
+            self.grads = torch.autograd.grad(scores,self._fmaps,grad_outputs=torch.ones_like(scores),create_graph=False)[0]
 
         alpha = self.grads**2/(2*self.grads**2+torch.sum(self._fmaps*self.grads**3,dim=(2,3),keepdim=True))
         grad_weights = torch.sum(alpha*torch.relu(self.grads),dim=(2,3),keepdim=True)
