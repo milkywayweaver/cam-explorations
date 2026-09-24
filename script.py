@@ -28,14 +28,19 @@ os.makedirs('saves',exist_ok=True)
 
 # PARSE ARGS FROM CLI
 parser = argparse.ArgumentParser()
+parser.add_argument('--model',default=None,type=str,choices=['CAM','ConvCAM','GradCAM','GradCAM++','ScoreCAM','FIMFScoreCAM','LayerCAM'],nargs=1)
 parser.add_argument('--backbone',default=None,type=str,choices=['VGG','ResNet','EffNet'],nargs=1)
 parser.add_argument('--classifier',default=None,type=str,choices=['MLP','GAP','Conv'],nargs=1)
 parser.add_argument('--projection',default=None,type=str,choices=['duplicate','mapper'],nargs=1)
 parser.add_argument('--augment',default=None,type=str,choices=['geometric','color','blur','erasing'],nargs='+')
 parser.add_argument('--data',default=None,type=str,choices=['all','tumor'],nargs=1)
 parser.add_argument('--verbose',default=None,type=str,choices=['true','false'],nargs=1)
+parser.add_argument('--seed',default=None,type=int,nargs=1)
+parser.add_argument('--exp_name',default=None,type=str,nargs=1)
 args = parser.parse_args()
 
+if args.model:
+    CONFIG['model']['class'] = args.model[0]
 if args.backbone:
     CONFIG['backbone']['class'] = args.backbone[0]
 if args.classifier:
@@ -48,6 +53,10 @@ if args.data:
     CONFIG['data_contents'] = args.data[0]
 if args.verbose is not None:
     CONFIG['verbose'] = True if args.verbose[0] == 'true' else False
+if args.seed:
+    CONFIG['seed'] = args.seed[0]
+if args.exp_name:
+    CONFIG['experiment_name'] = args.exp_name[0]
 
 np.random.seed(CONFIG['seed'])
 torch.random.manual_seed(CONFIG['seed'])

@@ -4,8 +4,8 @@ from src.models.gradcam import GradCAM,GradCAMPlusPlus,LayerCAM
 from src.models.cam import ConvCAM,CAM,ScoreCAM,FIMFScoreCAM
 
 def get_model_class(model,backbone,classifier,projection):
-    if model not in ['CAM','ConvCAM','GradCAM','GradCAM++','ScoreCAM','FIMF ScoreCAM','LayerCAM']:
-        raise ValueError('Unknown model! Please use "CAM", "ConvCAM", "GradCAM", "GradCAM++", "ScoreCAM", "FIMF ScoreCAM", or "LayerCAM".')
+    if model not in ['CAM','ConvCAM','GradCAM','GradCAM++','ScoreCAM','FIMFScoreCAM','LayerCAM']:
+        raise ValueError('Unknown model! Please use "CAM", "ConvCAM", "GradCAM", "GradCAM++", "ScoreCAM", "FIMFScoreCAM", or "LayerCAM".')
     if backbone not in ['VGG','ResNet','EffNet']:
         raise ValueError('Unknown backbone! Please use "VGG", "ResNet", or "EffNet".')
     if classifier not in ['MLP','GAP','Conv']:
@@ -24,7 +24,7 @@ def get_model_class(model,backbone,classifier,projection):
             MODEL = GradCAMPlusPlus
         case 'ScoreCAM':
             MODEL = ScoreCAM
-        case 'FIMF ScoreCAM':
+        case 'FIMFScoreCAM':
             MODEL = FIMFScoreCAM
         case 'LayerCAM':
             MODEL = LayerCAM

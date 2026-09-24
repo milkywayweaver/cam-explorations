@@ -81,7 +81,7 @@ def evaluate(model,dataloader,negative_class=None):
     # IoU
     M_bbox = masks_to_boxes(data_filtered['M'])
     mask_bbox = masks_to_boxes(data_filtered['mask'])
-    iou = intersection_over_union(mask_bbox,M_bbox,aggregate=True)
+    iou = intersection_over_union(mask_bbox,M_bbox,aggregate=False).diagonal().median()
 
     data['M_bbox'] = torch.tensor([[0,0,224,224] for i in range(data['y'].shape[0])],dtype=torch.float)
     data['mask_bbox'] = torch.tensor([[0,0,224,224] for i in range(data['y'].shape[0])],dtype=torch.float)
