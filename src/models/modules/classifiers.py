@@ -64,10 +64,7 @@ class ConvClassifier(BaseClassifier):
     def __init__(self,num_classes,fmaps_shape):
         super().__init__(num_classes=num_classes,fmaps_shape=fmaps_shape)
         self.classifier  = nn.Sequential(
-            nn.Conv2d(self.fmaps_shape[1],128,kernel_size=3,stride=1,padding=1),
-            nn.BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
-            nn.LeakyReLU(),
-            nn.Conv2d(128,self.num_classes,kernel_size=1,stride=1,padding=0)
+            nn.Conv2d(self.fmaps_shape[1],self.num_classes,kernel_size=1,stride=1,padding=0)
         )
         self.gap = nn.AdaptiveAvgPool2d(1)
 
