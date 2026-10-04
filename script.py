@@ -8,7 +8,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
-from src.augment import train_transform,test_transform
+from src.augment import get_transforms
 from src.briscloader import LoadBRISC
 from src.trainloop.forward_trainer import ForwardTrainer
 from src.evaluate import evaluate,plot_confmat,plot_history,plot_sample,plot_distribution
@@ -73,6 +73,8 @@ for key,value in CONFIG.items():
 print(f'device: {device}')
 
 # READ DATA ================================================================================================================
+train_transform,test_transform = get_transforms(CONFIG['augment'])
+
 loader = LoadBRISC()
 train_ds,val_ds,test_ds = loader.load(classes=CONFIG['data_contents'], # type: ignore
                                       planes='all',
@@ -125,7 +127,7 @@ torch.save(MODEL.state_dict(),f'saves/CAM_{CONFIG['run_name']}.pth')
 print(f'Training completed in {loop.fit_time:.4f} seconds.')
 
 # MODEL EVALUATION
-results = evaluate(MODEL,test_dl,negative_class=loader.negative_class)
+results = evaluate(MODEL,test_dl,threshold=CONFIG['threshold'],negative_class=loader.negative_class)
 (acc,dsc,iou) = results['metrics']
 data = results['data']
 fit_time = loop.fit_time

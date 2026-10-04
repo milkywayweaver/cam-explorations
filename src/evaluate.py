@@ -16,7 +16,7 @@ with open('./config.yaml') as f:
     
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-def make_preds(model,dataloader) -> dict:
+def make_preds(model,dataloader,threshold) -> dict:
     model.to(device)
     model.eval()
     data = {
@@ -33,7 +33,7 @@ def make_preds(model,dataloader) -> dict:
             y_logits = model(X)
             y_preds = torch.softmax(y_logits,1).argmax(1)
             y_cams = model.get_cam(threshold='raw')
-            y_masks = model.get_cam(threshold=CONFIG['threshold'])
+            y_masks = model.get_cam(threshold=threshold)
 
             data['X'].extend(X)
             data['M'].extend(M)
@@ -52,7 +52,8 @@ def make_preds(model,dataloader) -> dict:
 def _filter_data(data,negative_class):
     negative_index = data['y'] != negative_class if negative_class is not None else torch.ones_like(data['y'],dtype=torch.bool)
     correct_index = data['y'] == data['y_pred']
-    filter_index = negative_index & correct_index
+    non_empty_mask = data['mask'].sum(dim=(-2,-1)) > 0
+    filter_index = negative_index & correct_index & non_empty_mask
 
     data_filtered = data.copy()
     for key,value in data_filtered.items():
@@ -60,17 +61,18 @@ def _filter_data(data,negative_class):
 
     return data_filtered,filter_index
 
-def evaluate(model,dataloader,negative_class=None):
+def evaluate(model,dataloader,threshold,negative_class=None):
     '''
     Evaluates the a DataLoader.
     Args:
         model (nn.Module): The model to make predictions.
         dataloader (torch.utils.data.DataLoader): DataLoader which the dataset is loaded in.
+        threshold (float): Threshold to convert CAM into mask.
         negative_class (int, default=None): Negative class which contains no object of interest.
     Returns:
         Dictionary containing evaluation metrics and the data. 
     '''
-    data = make_preds(model,dataloader)
+    data = make_preds(model,dataloader,threshold)
     # Accuracy
     acc = accuracy_score(data['y'],data['y_pred'])
 
@@ -131,7 +133,7 @@ def plot_sample(data,index=None,classes=None):
 
     plt.subplot(1,4,1)
     ax = plt.gca()
-    ax.imshow(X)
+    ax.imshow(X,cmap='binary_r')
     ax.add_patch(M_patch)
     ax.add_patch(mask_patch)
     plt.text(M_bbox[0],M_bbox[1],s='GT',color='lime')
@@ -140,17 +142,17 @@ def plot_sample(data,index=None,classes=None):
     plt.title('Image')
 
     plt.subplot(1,4,2)
-    plt.imshow(M)
+    plt.imshow(M,cmap='binary_r')
     plt.axis(False)
     plt.title('GT Mask')
 
     plt.subplot(1,4,3)
-    plt.imshow(mask)
+    plt.imshow(mask,cmap='binary_r')
     plt.axis(False)
     plt.title('Predicted Mask')
 
     plt.subplot(1,4,4)
-    plt.imshow(cam)
+    plt.imshow(cam,cmap='binary_r')
     plt.axis(False)
     plt.title('Upscaled CAM')
 
