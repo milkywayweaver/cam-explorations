@@ -32,7 +32,7 @@ parser.add_argument('--model',default=None,type=str,choices=['CAM','ConvCAM','Gr
 parser.add_argument('--backbone',default=None,type=str,choices=['VGG','ResNet','EffNet'],nargs=1)
 parser.add_argument('--classifier',default=None,type=str,choices=['MLP','GAP','Conv'],nargs=1)
 parser.add_argument('--projection',default=None,type=str,choices=['duplicate','mapper'],nargs=1)
-parser.add_argument('--augment',default=None,type=str,choices=['geometric','color','blur','erasing'],nargs='+')
+parser.add_argument('--augment',default=None,type=str,choices=['geometric','zoom','color','blur','erasing'],nargs='+')
 parser.add_argument('--data',default=None,type=str,choices=['all','tumor'],nargs=1)
 parser.add_argument('--verbose',default=None,type=str,choices=['true','false'],nargs=1)
 parser.add_argument('--seed',default=None,type=int,nargs=1)

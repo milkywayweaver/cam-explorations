@@ -22,25 +22,31 @@ conda activate torch
 
 export CUBLAS_WORKSPACE_CONFIG=:4096:8
 
-model="GradCAM"
+models=("FIMFScoreCAM")
 backbones=("VGG")
 classifiers=("Conv")
 projections=("duplicate")
 datas=("all")
-seeds=(16 42 46 67 29 20 4 3 103 209)
+seeds=(42 16 46 103 209 20 29 3 4 67)
+# augmets=("geometric" "zoom" "color" "blur" "erasing")
 
 verbose=false
-title="Seed"
+title="AugmentInvert"
 mkdir result-${title}
 
-for backbone in ${backbones[@]}; do
-    for classifier in ${classifiers[@]}; do
-        for projection in ${projections[@]}; do
-            for data in ${datas[@]}; do
-		        for seed in ${seeds[@]}; do
-                    echo "Starting run for seed ${seed}, ${backbone} backbone, ${classifier} classifier, and ${projection} projection with ${data}."
-                    python script.py --exp_name ${title} --seed ${seed} --model ${model} --backbone ${backbone} --classifier ${classifier} --projection ${projection} --data ${data} --verbose ${verbose} > ./result-${model}/${backbone}-${classifier}-${projection}-${data}.out
-                    sleep 10
+for model in ${models[@]}; do
+    for backbone in ${backbones[@]}; do
+        for classifier in ${classifiers[@]}; do
+            for projection in ${projections[@]}; do
+                for data in ${datas[@]}; do
+                    for seed in ${seeds[@]}; do
+                        # for i in {1..5}; do
+                        echo "Starting run..."
+                        # python script.py --augment ${augmets[@]:0:i} --seed ${seed} --model ${model} --backbone ${backbone} --classifier ${classifier} --projection ${projection} --data ${data} --verbose ${verbose} > ./result-${title}/${seed}-${backbone}-${classifier}-${projection}-${data}-${i}.out
+                        python script.py --seed ${seed} --model ${model} --backbone ${backbone} --classifier ${classifier} --projection ${projection} --data ${data} --verbose ${verbose} > ./result-${title}/${seed}-${backbone}-${classifier}-${projection}-${data}.out
+                        sleep 10
+                        # done
+                    done
                 done
             done
         done

@@ -1,4 +1,4 @@
-experiment_name: Single Runs
+experiment_name: AugmentInvert
 run_name: default
 seed: 42
 verbose: true
@@ -11,21 +11,24 @@ model: {
 }
 backbone: {
   class: VGG,
-  kwargs: {}
+  kwargs: {
+    pretrain: true
+  }
 }
 classifier: {
-  class: MLP,
+  class: Conv,
   kwargs: {}
 }
 projection: duplicate
 augment:
   - geometric
+  # - zoom
   - color
-  # - blur
+  - blur
   # - erasing
 
 batch_size: 32
-epochs: 25
+epochs: 50
 lr: 1e-3            
 wd: 1e-4
 threshold: 0.7
