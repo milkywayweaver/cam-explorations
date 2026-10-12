@@ -166,7 +166,7 @@ class FIMFScoreCAM(BaseModel):
         with torch.inference_mode():
             for i in range(self._fmaps.shape[1]):
                 mask = self._fmaps[:,i].unsqueeze(1)
-                mask = torch.relu(mask)
+                mask = torch.where(mask > 0, 1,0)
                 mask = self._process_cam(mask,threshold='raw',img_size=None)
                 masked_fmaps = self._fmaps*mask 
 
@@ -175,10 +175,9 @@ class FIMFScoreCAM(BaseModel):
 
                 C = masked_scores
                 Cs.append(C.unsqueeze(1))
-        Cs = torch.cat(Cs,dim=1)
-        alpha = torch.softmax(Cs,dim=1).unsqueeze(-1).unsqueeze(-1)
-    
-        cams = torch.relu(torch.sum(torch.relu(alpha*self._fmaps),dim=1,keepdim=True))
+        Cs = torch.cat(Cs,dim=1).unsqueeze(-1).unsqueeze(-1)
+
+        cams = torch.relu(torch.sum(Cs*self._fmaps,dim=1,keepdim=True))
         cams = self._process_cam(cams,threshold=threshold)
         return cams
 

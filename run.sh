@@ -21,4 +21,4 @@ unset __conda_setup
 conda activate torch
 
 export CUBLAS_WORKSPACE_CONFIG=:4096:8
-python3 script.py --verbose false > "run_result_$(date +%Y-%m-%d_%H-%M-%S).out"
+python3 script.py --augment geometric blur erasing --verbose true > "run_result_$(date +%Y-%m-%d_%H-%M-%S).out"

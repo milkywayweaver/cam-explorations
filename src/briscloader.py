@@ -4,6 +4,7 @@ from torch.utils.data import Dataset,random_split
 from PIL import Image
 from torchvision.transforms.v2.functional import to_image
 from torchvision.transforms import v2
+from torchvision import tv_tensors
 from sklearn.preprocessing import OrdinalEncoder
 import os
 import glob
@@ -62,7 +63,7 @@ class LoadBRISC():
             'no':'no_tumor'
         }
         self.classes_dict = {
-            'all':['gl','me','no','pi'],
+            'all':['no','gl','me','pi'],
             'tumor':['gl','me','pi']
         }
         self.planes_dict = {
@@ -71,7 +72,7 @@ class LoadBRISC():
             'sa':['sa'],
             'co':['co']
         }
-        self.classes = self.classes_dict[classes]
+        self.classes_ = self.classes_dict[classes]
         self.negative_class = 0 if classes == 'all' else None
         self.planes = self.planes_dict[planes]
         self.encoding_type = encoding_type
@@ -84,7 +85,7 @@ class LoadBRISC():
         test_ids = []
         train_labels = []
         test_labels = []
-        for cls in self.classes:
+        for cls in self.classes_:
             for pln in self.planes:
                 labels = f'{cls}' if label_type == 'class' else f'{pln}' if label_type == 'plane' else f'{cls} {pln}'
                 if cls == 'no':
@@ -135,11 +136,11 @@ class LoadBRISC():
         Returns:
             Array of encoded labels
         '''
-        encoder = OrdinalEncoder(categories=[['no','gl','me','pi']])
+        encoder = OrdinalEncoder(categories=[self.classes_])
         labels_enc = encoder.fit_transform(labels.reshape(-1,1)).squeeze().astype(int)
         self.classes = [self.classes_abr[cls] for cls in list(encoder.categories_[0])]
         if self.encoding_type == 'onehot':
-            labels_enc = np.eye(len(self.classes),dtype=int)[labels_enc]
+            labels_enc = np.eye(len(self.classes_),dtype=int)[labels_enc]
         return labels_enc
 
     def __import_image(self,ids,mode,verbose):
@@ -184,8 +185,8 @@ class DatasetClass(Dataset):
         return self.imgs.shape[0]
 
     def __getitem__(self, index):
-        img = self.imgs[index]
-        mask = self.masks[index]
+        img = tv_tensors.Image(self.imgs[index])
+        mask = tv_tensors.Mask(self.masks[index])
         label = self.labels[index]
 
         if self.transform:

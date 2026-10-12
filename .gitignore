@@ -10,3 +10,4 @@ run_result.out
 __pycache__/
 *.txt
 *.csv
+/result*/

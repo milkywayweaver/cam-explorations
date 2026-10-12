@@ -8,7 +8,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
-from src.augment import train_transform,test_transform
+from src.augment import get_transforms
 from src.briscloader import LoadBRISC
 from src.trainloop.forward_trainer import ForwardTrainer
 from src.evaluate import evaluate,plot_confmat,plot_history,plot_sample,plot_distribution
@@ -28,14 +28,19 @@ os.makedirs('saves',exist_ok=True)
 
 # PARSE ARGS FROM CLI
 parser = argparse.ArgumentParser()
+parser.add_argument('--model',default=None,type=str,choices=['CAM','ConvCAM','GradCAM','GradCAM++','ScoreCAM','FIMFScoreCAM','LayerCAM'],nargs=1)
 parser.add_argument('--backbone',default=None,type=str,choices=['VGG','ResNet','EffNet'],nargs=1)
 parser.add_argument('--classifier',default=None,type=str,choices=['MLP','GAP','Conv'],nargs=1)
 parser.add_argument('--projection',default=None,type=str,choices=['duplicate','mapper'],nargs=1)
-parser.add_argument('--augment',default=None,type=str,choices=['geometric','color','blur','erasing'],nargs='+')
+parser.add_argument('--augment',default=None,type=str,choices=['geometric','zoom','color','blur','erasing'],nargs='+')
 parser.add_argument('--data',default=None,type=str,choices=['all','tumor'],nargs=1)
 parser.add_argument('--verbose',default=None,type=str,choices=['true','false'],nargs=1)
+parser.add_argument('--seed',default=None,type=int,nargs=1)
+parser.add_argument('--exp_name',default=None,type=str,nargs=1)
 args = parser.parse_args()
 
+if args.model:
+    CONFIG['model']['class'] = args.model[0]
 if args.backbone:
     CONFIG['backbone']['class'] = args.backbone[0]
 if args.classifier:
@@ -48,6 +53,10 @@ if args.data:
     CONFIG['data_contents'] = args.data[0]
 if args.verbose is not None:
     CONFIG['verbose'] = True if args.verbose[0] == 'true' else False
+if args.seed:
+    CONFIG['seed'] = args.seed[0]
+if args.exp_name:
+    CONFIG['experiment_name'] = args.exp_name[0]
 
 np.random.seed(CONFIG['seed'])
 torch.random.manual_seed(CONFIG['seed'])
@@ -64,6 +73,8 @@ for key,value in CONFIG.items():
 print(f'device: {device}')
 
 # READ DATA ================================================================================================================
+train_transform,test_transform = get_transforms(CONFIG['augment'])
+
 loader = LoadBRISC()
 train_ds,val_ds,test_ds = loader.load(classes=CONFIG['data_contents'], # type: ignore
                                       planes='all',
@@ -116,7 +127,7 @@ torch.save(MODEL.state_dict(),f'saves/CAM_{CONFIG['run_name']}.pth')
 print(f'Training completed in {loop.fit_time:.4f} seconds.')
 
 # MODEL EVALUATION
-results = evaluate(MODEL,test_dl,negative_class=loader.negative_class)
+results = evaluate(MODEL,test_dl,threshold=CONFIG['threshold'],negative_class=loader.negative_class)
 (acc,dsc,iou) = results['metrics']
 data = results['data']
 fit_time = loop.fit_time

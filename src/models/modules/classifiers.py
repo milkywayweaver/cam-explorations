@@ -33,13 +33,14 @@ class MLPClassifier(BaseClassifier):
     def __init__(self,num_classes,fmaps_shape,layers=[128,128]):
         super().__init__(num_classes=num_classes,fmaps_shape=fmaps_shape)
         flattened_shape = self.fmaps_shape[1]*self.fmaps_shape[2]*self.fmaps_shape[3]
-        layers.insert(0,flattened_shape)
+        layers_ = layers.copy()
+        layers_.insert(0,flattened_shape)
 
         sequence_list:list[nn.Module] = [nn.Flatten(start_dim=1,end_dim=-1)]
-        for i in range(len(layers)-1):
-            sequence_list.append(nn.Linear(in_features=layers[i],out_features=layers[i+1]))
+        for i in range(len(layers_)-1):
+            sequence_list.append(nn.Linear(in_features=layers_[i],out_features=layers_[i+1]))
             sequence_list.append(nn.LeakyReLU())
-        sequence_list.append(nn.Linear(in_features=layers[-1],out_features=self.num_classes))
+        sequence_list.append(nn.Linear(in_features=layers_[-1],out_features=self.num_classes))
 
 
         self.classifier = nn.Sequential(*sequence_list)
@@ -63,10 +64,7 @@ class ConvClassifier(BaseClassifier):
     def __init__(self,num_classes,fmaps_shape):
         super().__init__(num_classes=num_classes,fmaps_shape=fmaps_shape)
         self.classifier  = nn.Sequential(
-            nn.Conv2d(self.fmaps_shape[1],128,kernel_size=3,stride=1,padding=1),
-            nn.BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
-            nn.LeakyReLU(),
-            nn.Conv2d(128,self.num_classes,kernel_size=1,stride=1,padding=0)
+            nn.Conv2d(self.fmaps_shape[1],self.num_classes,kernel_size=1,stride=1,padding=0)
         )
         self.gap = nn.AdaptiveAvgPool2d(1)
 

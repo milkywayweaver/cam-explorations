@@ -16,7 +16,7 @@ with open('./config.yaml') as f:
     
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-def make_preds(model,dataloader) -> dict:
+def make_preds(model,dataloader,threshold) -> dict:
     model.to(device)
     model.eval()
     data = {
@@ -33,7 +33,7 @@ def make_preds(model,dataloader) -> dict:
             y_logits = model(X)
             y_preds = torch.softmax(y_logits,1).argmax(1)
             y_cams = model.get_cam(threshold='raw')
-            y_masks = model.get_cam(threshold=CONFIG['threshold'])
+            y_masks = model.get_cam(threshold=threshold)
 
             data['X'].extend(X)
             data['M'].extend(M)
@@ -52,7 +52,8 @@ def make_preds(model,dataloader) -> dict:
 def _filter_data(data,negative_class):
     negative_index = data['y'] != negative_class if negative_class is not None else torch.ones_like(data['y'],dtype=torch.bool)
     correct_index = data['y'] == data['y_pred']
-    filter_index = negative_index & correct_index
+    non_empty_mask = data['mask'].sum(dim=(-2,-1)) > 0
+    filter_index = negative_index & correct_index & non_empty_mask
 
     data_filtered = data.copy()
     for key,value in data_filtered.items():
@@ -60,17 +61,18 @@ def _filter_data(data,negative_class):
 
     return data_filtered,filter_index
 
-def evaluate(model,dataloader,negative_class=None):
+def evaluate(model,dataloader,threshold,negative_class=None):
     '''
     Evaluates the a DataLoader.
     Args:
         model (nn.Module): The model to make predictions.
         dataloader (torch.utils.data.DataLoader): DataLoader which the dataset is loaded in.
+        threshold (float): Threshold to convert CAM into mask.
         negative_class (int, default=None): Negative class which contains no object of interest.
     Returns:
         Dictionary containing evaluation metrics and the data. 
     '''
-    data = make_preds(model,dataloader)
+    data = make_preds(model,dataloader,threshold)
     # Accuracy
     acc = accuracy_score(data['y'],data['y_pred'])
 
@@ -81,7 +83,7 @@ def evaluate(model,dataloader,negative_class=None):
     # IoU
     M_bbox = masks_to_boxes(data_filtered['M'])
     mask_bbox = masks_to_boxes(data_filtered['mask'])
-    iou = intersection_over_union(mask_bbox,M_bbox,aggregate=True)
+    iou = intersection_over_union(mask_bbox,M_bbox,aggregate=False).diagonal().median()
 
     data['M_bbox'] = torch.tensor([[0,0,224,224] for i in range(data['y'].shape[0])],dtype=torch.float)
     data['mask_bbox'] = torch.tensor([[0,0,224,224] for i in range(data['y'].shape[0])],dtype=torch.float)
@@ -131,7 +133,7 @@ def plot_sample(data,index=None,classes=None):
 
     plt.subplot(1,4,1)
     ax = plt.gca()
-    ax.imshow(X)
+    ax.imshow(X,cmap='binary_r')
     ax.add_patch(M_patch)
     ax.add_patch(mask_patch)
     plt.text(M_bbox[0],M_bbox[1],s='GT',color='lime')
@@ -140,17 +142,17 @@ def plot_sample(data,index=None,classes=None):
     plt.title('Image')
 
     plt.subplot(1,4,2)
-    plt.imshow(M)
+    plt.imshow(M,cmap='binary_r')
     plt.axis(False)
     plt.title('GT Mask')
 
     plt.subplot(1,4,3)
-    plt.imshow(mask)
+    plt.imshow(mask,cmap='binary_r')
     plt.axis(False)
     plt.title('Predicted Mask')
 
     plt.subplot(1,4,4)
-    plt.imshow(cam)
+    plt.imshow(cam,cmap='binary_r')
     plt.axis(False)
     plt.title('Upscaled CAM')
 
@@ -158,7 +160,7 @@ def plot_sample(data,index=None,classes=None):
     iou = intersection_over_union(mask_bbox.unsqueeze(0),M_bbox.unsqueeze(0),aggregate=True)
     true_class = classes[y] if classes else y
     pred_class = classes[y_pred] if classes else y_pred
-    plt.suptitle(f'True: {true_class} | Pred: {pred_class}\nIoU: {iou:.4f} | DSC = {dsc:.2f}',y=0.98,weight='bold',fontsize=14)
+    plt.suptitle(f'True: {true_class} | Pred: {pred_class}\nIoU: {iou:.2f} | DSC = {dsc:.2f}',y=0.98,weight='bold',fontsize=14)
     plt.tight_layout()
 
 def plot_history(epochs,history,title=None):
@@ -179,7 +181,7 @@ def plot_history(epochs,history,title=None):
     plt.subplot(1,3,3)
     sns.lineplot(x=np.arange(epochs),y=history['train_dsc'],marker='o',label='Train')
     sns.lineplot(x=np.arange(epochs),y=history['val_dsc'],marker='o',label='Val')
-    plt.legend(loc='center right',bbox_to_anchor=(1.26,0.5))
+    plt.legend()
     plt.title('DSC')
     plt.xlabel('Epochs')
     plt.ylabel('DSC')
@@ -188,17 +190,20 @@ def plot_history(epochs,history,title=None):
     else:
         plt.suptitle('Training History Curve',weight='bold')
 
-def plot_distribution(data:dict,metric:str='dsc',negative_class=None):
+def plot_distribution(data:dict,metric:str='dsc',classes=None,negative_class=None,kde=False):
     '''
     Plots the distribution of selected metric.
     Args:
         data (dict): Data dictionary obtained from evaluate() function.
         metric (str, default="dsc"): Selected metric.
             Availabel metrics are: "dsc" and "iou".
+        classes (list): List of available classes. If provided, splits the histogram into each class.
         negative_class (int, default=None): Class where no object of interest is present. This class will be excluded from IoU/DSC calculation.
+        kde (bool): Whether to use KDE plot if true, or histogram plot if false.
     Returns:
         None
     '''
+    
     data_filtered,filter_index = _filter_data(data,negative_class=negative_class)
     if metric.lower() == 'dsc':
         items = dice_score(data_filtered['mask'],data_filtered['M'],num_classes=2,include_background=False,average='macro',input_format='index')
@@ -207,6 +212,15 @@ def plot_distribution(data:dict,metric:str='dsc',negative_class=None):
     else:
         raise NotImplementedError(f'Metric {metric} not yet implemented!')
 
-    sns.histplot(items)
+    hue = None
+    if classes:
+        hue_dict = dict(zip(range(len(classes)),classes))
+        hue = [hue_dict[int(y.item())] for y in data_filtered['y']]
+
+    plt.grid(color='gainsboro')
+    if kde:
+        sns.kdeplot(x=items,zorder=2,hue=hue,multiple='stack')
+    else:
+        sns.histplot(x=items,zorder=2,hue=hue,multiple='stack')
     plt.xlabel(metric)
-    plt.title(f'Median {metric.upper()}: {items.median():.4f}')
+    plt.title(f'Median {metric.upper()}: {items.median():.2f}')
