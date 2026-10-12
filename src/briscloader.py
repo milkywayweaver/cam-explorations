@@ -4,6 +4,7 @@ from torch.utils.data import Dataset,random_split
 from PIL import Image
 from torchvision.transforms.v2.functional import to_image
 from torchvision.transforms import v2
+from torchvision import tv_tensors
 from sklearn.preprocessing import OrdinalEncoder
 import os
 import glob
@@ -184,8 +185,8 @@ class DatasetClass(Dataset):
         return self.imgs.shape[0]
 
     def __getitem__(self, index):
-        img = self.imgs[index]
-        mask = self.masks[index]
+        img = tv_tensors.Image(self.imgs[index])
+        mask = tv_tensors.Mask(self.masks[index])
         label = self.labels[index]
 
         if self.transform:
