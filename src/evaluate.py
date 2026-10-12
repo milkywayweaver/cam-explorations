@@ -160,7 +160,7 @@ def plot_sample(data,index=None,classes=None):
     iou = intersection_over_union(mask_bbox.unsqueeze(0),M_bbox.unsqueeze(0),aggregate=True)
     true_class = classes[y] if classes else y
     pred_class = classes[y_pred] if classes else y_pred
-    plt.suptitle(f'True: {true_class} | Pred: {pred_class}\nIoU: {iou:.4f} | DSC = {dsc:.2f}',y=0.98,weight='bold',fontsize=14)
+    plt.suptitle(f'True: {true_class} | Pred: {pred_class}\nIoU: {iou:.2f} | DSC = {dsc:.2f}',y=0.98,weight='bold',fontsize=14)
     plt.tight_layout()
 
 def plot_history(epochs,history,title=None):
@@ -181,7 +181,7 @@ def plot_history(epochs,history,title=None):
     plt.subplot(1,3,3)
     sns.lineplot(x=np.arange(epochs),y=history['train_dsc'],marker='o',label='Train')
     sns.lineplot(x=np.arange(epochs),y=history['val_dsc'],marker='o',label='Val')
-    plt.legend(loc='center right',bbox_to_anchor=(1.26,0.5))
+    plt.legend()
     plt.title('DSC')
     plt.xlabel('Epochs')
     plt.ylabel('DSC')
@@ -190,17 +190,20 @@ def plot_history(epochs,history,title=None):
     else:
         plt.suptitle('Training History Curve',weight='bold')
 
-def plot_distribution(data:dict,metric:str='dsc',negative_class=None):
+def plot_distribution(data:dict,metric:str='dsc',classes=None,negative_class=None,kde=False):
     '''
     Plots the distribution of selected metric.
     Args:
         data (dict): Data dictionary obtained from evaluate() function.
         metric (str, default="dsc"): Selected metric.
             Availabel metrics are: "dsc" and "iou".
+        classes (list): List of available classes. If provided, splits the histogram into each class.
         negative_class (int, default=None): Class where no object of interest is present. This class will be excluded from IoU/DSC calculation.
+        kde (bool): Whether to use KDE plot if true, or histogram plot if false.
     Returns:
         None
     '''
+    
     data_filtered,filter_index = _filter_data(data,negative_class=negative_class)
     if metric.lower() == 'dsc':
         items = dice_score(data_filtered['mask'],data_filtered['M'],num_classes=2,include_background=False,average='macro',input_format='index')
@@ -209,6 +212,15 @@ def plot_distribution(data:dict,metric:str='dsc',negative_class=None):
     else:
         raise NotImplementedError(f'Metric {metric} not yet implemented!')
 
-    sns.histplot(items)
+    hue = None
+    if classes:
+        hue_dict = dict(zip(range(len(classes)),classes))
+        hue = [hue_dict[int(y.item())] for y in data_filtered['y']]
+
+    plt.grid(color='gainsboro')
+    if kde:
+        sns.kdeplot(x=items,zorder=2,hue=hue,multiple='stack')
+    else:
+        sns.histplot(x=items,zorder=2,hue=hue,multiple='stack')
     plt.xlabel(metric)
-    plt.title(f'Median {metric.upper()}: {items.median():.4f}')
+    plt.title(f'Median {metric.upper()}: {items.median():.2f}')
