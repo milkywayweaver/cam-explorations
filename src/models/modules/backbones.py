@@ -26,9 +26,10 @@ class BaseBackbone(nn.Module,metaclass=BackboneMeta):
         raise NotImplementedError('This method has not been implemented yet!')
 
 class VGGBackbone(BaseBackbone):
-    def __init__(self,):
+    def __init__(self,pretrain:bool=True):
         super().__init__()
-        self.pretrain = models.vgg19_bn(weights=models.VGG19_BN_Weights.IMAGENET1K_V1)
+        weights = models.VGG19_BN_Weights.IMAGENET1K_V1 if pretrain == True else None
+        self.pretrain = models.vgg19_bn(weights=weights)
         self.backbone = nn.Sequential(*list(self.pretrain.features.children())[:-13])
         del self.pretrain
 
@@ -50,9 +51,10 @@ class VGGBackbone(BaseBackbone):
         return 'VGG'
 
 class ResNetBackbone(BaseBackbone):
-    def __init__(self,):
+    def __init__(self,pretrain:bool=True):
         super().__init__()
-        self.pretrain = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1)
+        weights = models.ResNet50_Weights.IMAGENET1K_V1 if pretrain == True else None
+        self.pretrain = models.resnet50(weights=weights)
         self.backbone = nn.Sequential(*list(self.pretrain.children())[:-3])
         del self.pretrain
 
@@ -70,9 +72,10 @@ class ResNetBackbone(BaseBackbone):
         return 'ResNet'
 
 class EffNetBackbone(BaseBackbone):
-    def __init__(self,):
+    def __init__(self,pretrain:bool=True):
         super().__init__()
-        self.pretrain = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.IMAGENET1K_V1)
+        weights = models.EfficientNet_B0_Weights.IMAGENET1K_V1 if pretrain == True else None
+        self.pretrain = models.efficientnet_b0(weights=weights)
         self.backbone = nn.Sequential(*list(list(self.pretrain.children())[0].children())[:6])
         del self.pretrain
 
