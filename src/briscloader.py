@@ -9,6 +9,7 @@ from sklearn.preprocessing import OrdinalEncoder
 import os
 import glob
 from tqdm.auto import tqdm
+from skimage.filters import threshold_otsu
 
 class LoadBRISC():
     def __init__(self):
@@ -123,7 +124,15 @@ class LoadBRISC():
         self.train_ds = DatasetClass(train_imgs,train_masks,train_labels,transform=train_transform)
         self.test_ds = DatasetClass(test_imgs,test_masks,test_labels,transform=test_transform)
         if self.split_val:
-            self.val_ds,self.test_ds = random_split(self.test_ds,[0.5,0.5],generator=self.generator)
+            total_idxs = torch.arange(len(self.train_ds),dtype=torch.int)
+            train_idxs,val_idxs = random_split(total_idxs,[0.8,0.2],generator=self.generator)
+            train_idxs,val_idxs = torch.tensor(train_idxs),torch.tensor(val_idxs)
+
+            if torch.isin(train_idxs, val_idxs).any().item():
+                raise IndexError('Internal error splitting train and validation set.')
+
+            self.train_ds = DatasetClass(train_imgs[train_idxs],train_masks[train_idxs],train_labels[train_idxs],transform=train_transform)
+            self.val_ds = DatasetClass(train_imgs[val_idxs],train_masks[val_idxs],train_labels[val_idxs],transform=test_transform)
             return self.train_ds,self.val_ds,self.test_ds
         else:
             return self.train_ds,self.test_ds
@@ -167,7 +176,7 @@ class LoadBRISC():
                 mask_path = os.path.join(self.seg_root,f'{mode}/masks/brisc2025_{mode}_{id}.png')
                 mask = to_image(Image.open(mask_path).convert("L"))
                 mask = v2.functional.resize(mask,(224,224))
-                mask = (mask >= 0.7)
+                mask = (mask >= 0.95).to(torch.int)
             imgs.append(img)
             masks.append(mask)
         imgs = torch.stack(imgs).to(torch.float32)/255
